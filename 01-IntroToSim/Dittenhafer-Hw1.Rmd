@@ -143,19 +143,96 @@ Name several entities, attributes, activities, events, and state variables for t
 
 #### Entities
 
+* Doctors
+* Beds
+* Patients
+* Admitting staff
 
 #### Attributes
+
+* Patients per Doctor
 
 
 #### Activities
 
+* Patient admitted
+* Doctor take care of patient
+* Patient discharged
 
 #### Events
 
+* Patient arrives
+* Patient admitted
+* Doctor discharges patient
 
 #### State Variables
+
+* Beds empty
+* Patients awaiting addmission
+* Paitents awaiting discharge
 
 
 ### (f) A taxicab company with 10 taxis
 
+#### Entities
+
+* Taxis
+* Dispatcher
+* Customers
+
+#### Attributes
+
+* Taxi has customer
+* Taxi enroute to customer
+* Customer waiting for taxi
+
+#### Activities
+
+* Enroute to customer
+* Transporting customer
+
+#### Events
+
+* Picking up custommer
+* Dropping off customer
+
+#### State Variables
+
+* Taxis with customers
+* Customers waiting for available taxi
+
 ### (g) An automobile assembly line
+
+#### Entities
+
+* Parts
+* Assembly machines
+* Workers
+
+#### Attributes
+
+* Parts inventory
+* Assembly machine rate of production
+* Worker rate of production
+
+#### Activities
+
+* Machine assembling car 
+* Worker assembling car
+* Staging parts for use by Machine or Worker
+
+#### Events
+
+* Car assembly started
+* Car assembly completed
+* Parts depleted
+* Car assembly by machine X completed
+* Car assembly by worker Y completed
+
+#### State Variables
+
+* Cars on assembly line
+* Parts inventory level
+* Workers out sick/vacation
+* Machines broken down
+
