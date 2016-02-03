@@ -1,0 +1,161 @@
+---
+title: "Homework 1"
+subtitle: "DATA604 Simulation and Modeling"
+author: "Daniel Dittenhafer"
+date: "February 2, 2016"
+output: pdf_document
+---
+
+## 1.1
+
+Name several entities, attributes, activities, events, and state variables for the following systems.
+
+### (a) A cafeteria
+
+#### Entities
+
+* Serving Line
+* Food Servers
+* Tables
+
+#### Attributes
+
+* Number of Food Servers
+* Number of seats per table
+* Rate of serving for Food Servers
+* Time range for eating the meal
+
+#### Activities
+
+* Waiting in line
+* Being served by a Food Server
+* Waiting for a table to eat
+* Eating at a table
+
+#### Events
+
+* Arrival of new person in serving line to be served
+* Person leaving serving line
+* Person waiting for seat at table to eat
+* Person finishing eating and leaving table
+
+#### State Variables
+
+* Number of people eating at tables
+* Number of people waiting in line to be served
+
+### (b) A grocery store
+
+#### Entities
+
+* Checkout lanes
+
+#### Attributes
+
+* Max number of items allowed in checkout lane
+* Rate of checkout for cashier
+
+#### Activities
+
+* Customer shopping in the grocery store
+* Customer checking out (paying for goods)
+
+#### Events
+
+* Arrival of customer at grocery store
+* Arrival of customer at checkout lane
+* Customer completing checkout
+* Customer departing store without purchasing anything
+
+#### State Variables
+
+* Number of customers in grocery store
+* Number of customers in checkout lane lines
+
+
+### (c) A laundromat
+
+#### Entities
+
+* Washing machines
+* Drying machines
+
+#### Attributes
+
+* Washing machine run time
+* Drying machine run time
+* Ratio of washing machine to drying machine capacity
+
+#### Activities
+
+* Washing clothes
+* Drying clothes
+* Loading washing machine
+* Transfering from washing to drying machine
+* Unloading from drying machine
+
+#### Events
+
+* Washing maching cycle starts
+* Washing machine cycle stops
+* Dryer cycle starts
+* Dryer cycle stops
+
+#### State Variables
+
+* Number of busy washing machines
+* Number of busy dryers
+
+### (d) A fast-food restaurant
+
+#### Entities
+
+* Cashiers
+* Back-cooks (i.e. burger flippers)
+* Fryers
+
+#### Attributes
+
+* Burgers per burger flipper
+* Orders of frys per Fryer
+* Cashier busy or not
+
+#### Activities
+
+* Cooking a burger
+* Making french frys
+* Cashier taking order, accepting payment
+
+#### Events
+
+* Order in
+* Order ready for pickup
+* French fries done cooking
+
+#### State Variables
+
+* Number of orders pending
+* Number of burgers being cooked
+* Orders of french frys cooked/ready for serving
+* Number of bugers being ready for serving
+
+### (e) A hospital emergency room
+
+#### Entities
+
+
+#### Attributes
+
+
+#### Activities
+
+
+#### Events
+
+
+#### State Variables
+
+
+### (f) A taxicab company with 10 taxis
+
+### (g) An automobile assembly line
