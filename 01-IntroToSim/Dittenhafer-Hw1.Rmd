@@ -5,6 +5,9 @@ author: "Daniel Dittenhafer"
 date: "February 2, 2016"
 output: pdf_document
 ---
+```{r, echo=FALSE}
+set.seed(20275)
+```
 
 ## 1.1
 
@@ -236,3 +239,55 @@ Name several entities, attributes, activities, events, and state variables for t
 * Workers out sick/vacation
 * Machines broken down
 
+2.1 Consider the following continuously operating job shop. Interarrival times of jobs are distributed as follows:
+
+Time Between Arrivals (hours) | Probability
+------------------------------|------------
+0                             |  0.23
+1                             |  0.37
+2                             |  0.28
+3                             |  0.12
+
+Processing times for jobs are normally distributed, with mean 50 minutes, and standard deviation 8 minutes. Construct
+a simulation table and perform a simulation for 10 new customers. Assume that, when the simulation starts, there is one
+job being processed (scheduled to be completed in 25 minutes) and there is one job with a 50-minute processing time in
+the queue.
+
+
+```{r}
+existingJobs <- data.frame(customer=c(-2, -1), 
+                           interarrivalHrs=c(0,0), 
+                           interarrivalMins=c(0,0), 
+                           arrivalMins=c(0,0),
+                           jobProcessingMins=c(25, 50))
+
+newJobs <- data.frame(customer=seq(1, 10), 
+                       interarrivalHrs=sample(seq(0, 3), 
+                                              size=10, 
+                                              prob=c(.23, .37, .28, .12), 
+                                              replace=TRUE), 
+                       interarrivalMins=rep(NA, 10), 
+                       arrivalMins=rep(0, 10),
+                       jobProcessingMins=rnorm(10, mean=50, sd=8))
+
+newJobs$interarrivalMins <- newJobs$interarrivalHrs * 60
+newJobs$arrivalMins <- cumsum(newJobs$interarrivalMins) 
+
+simTable <- rbind(existingJobs, newJobs)
+simTable
+
+```
+
+#### (a) What was the average time in the queue for the 10 new jobs?
+
+
+#### (b) What was the average processing time of the 10 new jobs?
+
+The average processing time is computed below:
+
+```{r}
+mean(newJobs$jobProcessingMins)
+```
+
+
+#### (c) What was the maximum time in the system for the 10 new jobs?
