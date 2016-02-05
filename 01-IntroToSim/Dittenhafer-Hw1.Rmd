@@ -4,8 +4,10 @@ subtitle: "DATA604 Simulation and Modeling"
 author: "Daniel Dittenhafer"
 date: "February 2, 2016"
 output: pdf_document
+geometry: margin=0.5in
 ---
 ```{r, echo=FALSE}
+library(knitr)
 set.seed(20275)
 ```
 
@@ -239,7 +241,9 @@ Name several entities, attributes, activities, events, and state variables for t
 * Workers out sick/vacation
 * Machines broken down
 
-2.1 Consider the following continuously operating job shop. Interarrival times of jobs are distributed as follows:
+## 2.1 
+
+Consider the following continuously operating job shop. Interarrival times of jobs are distributed as follows:
 
 Time Between Arrivals (hours) | Probability
 ------------------------------|------------
@@ -255,39 +259,126 @@ the queue.
 
 
 ```{r}
+# Create a data frame of the pre-existing jobs
 existingJobs <- data.frame(customer=c(-2, -1), 
-                           interarrivalHrs=c(0,0), 
-                           interarrivalMins=c(0,0), 
+                           iaHrs=c(0,0), 
+                           iaMins=c(0,0), 
                            arrivalMins=c(0,0),
-                           jobProcessingMins=c(25, 50))
-
+                           svcTimeMins=c(25, 50),
+                           timeSvcBegin=c(0, 25),
+                           queueWaitMins=c(0,25),
+                           timeSvcEnd=c(25, 75),
+                           timeInSystem=c(25,75))
+# Create a data frame of the new customers and their jobs
 newJobs <- data.frame(customer=seq(1, 10), 
-                       interarrivalHrs=sample(seq(0, 3), 
-                                              size=10, 
+                      iaHrs=c(0, sample(seq(0, 3), 
+                                              size=9, 
                                               prob=c(.23, .37, .28, .12), 
-                                              replace=TRUE), 
-                       interarrivalMins=rep(NA, 10), 
-                       arrivalMins=rep(0, 10),
-                       jobProcessingMins=rnorm(10, mean=50, sd=8))
-
-newJobs$interarrivalMins <- newJobs$interarrivalHrs * 60
-newJobs$arrivalMins <- cumsum(newJobs$interarrivalMins) 
-
+                                              replace=TRUE)), 
+                      iaMins=rep(NA, 10), 
+                      arrivalMins=rep(0, 10),
+                      svcTimeMins=rnorm(10, mean=50, sd=8),
+                      timeSvcBegin=rep(0, 10),
+                      queueWaitMins=rep(0, 10),
+                      timeSvcEnd=rep(0, 10),
+                      timeInSystem=rep(0, 10))
+# Convert from interarrival hours to minutes and 
+# determine overall arrival times
+newJobs$iaMins <- newJobs$iaHrs * 60
+newJobs$arrivalMins <- cumsum(newJobs$iaMins) 
+# Join the existing and new jobs into one table
 simTable <- rbind(existingJobs, newJobs)
-simTable
-
+# Loop over the rows the compute the various activity and clock times
+for(i in seq(3, nrow(simTable)))
+{
+  simTable[i,]$timeSvcBegin <- max(simTable[i,]$arrivalMins, simTable[i-1,]$timeSvcEnd)
+  simTable[i,]$queueWaitMins <- simTable[i,]$timeSvcBegin - simTable[i,]$arrivalMins
+  simTable[i,]$timeSvcEnd <- simTable[i,]$timeSvcBegin + simTable[i,]$svcTimeMins
+  simTable[i,]$timeInSystem <- simTable[i,]$timeSvcEnd - simTable[i,]$arrivalMins
+}
+# Show the table
+kable(simTable)
 ```
 
 #### (a) What was the average time in the queue for the 10 new jobs?
 
+The average time in the queue for the 10 new jobs is computed below:
+
+```{r}
+mean(simTable[seq(3, 12),]$queueWaitMins)
+```
 
 #### (b) What was the average processing time of the 10 new jobs?
 
 The average processing time is computed below:
 
 ```{r}
-mean(newJobs$jobProcessingMins)
+mean(newJobs$svcTimeMins)
 ```
 
 
 #### (c) What was the maximum time in the system for the 10 new jobs?
+
+The maximum time in the system for the 10 new jobs is computed below:
+
+```{r}
+max(simTable[seq(3, 12),]$timeInSystem)
+```
+
+## 2.2
+
+A baker is trying to figure out how many dozens of bagels to bake each day. The probability distribution of the number of bagel customers is as follows:
+
+Customer/Day | 8    | 10   | 12   | 14 
+-------------|------|------|------|----
+Probability  | 0.35 | 0.30 | 0.25 | 0.10
+
+Customers order 1,2,3 or 4 dozen bagels according to the following probability distribution:
+
+Dozen Ordered/Customer | 1   | 2   | 3   | 4   
+-----------------------|-----|-----|-----|-----
+Probability            | 0.4 | 0.3 | 0.2 | 0.1
+
+Bagels sell for $8.40 per dozen. They cost $5.80 per dozen to make. All bagels not sold at the end of the day
+are sold at half priec to a local grocery store. Based on 5 days of simulation, how many dozen (to the nearest 5 dozen)
+bagels should be baked each day?
+
+```{r}
+simDays <- 5
+revPerDoz <- 8.40
+costPerDoz <- 5.80
+bagelsMade <- 15
+simTable <- data.frame(day=seq(1, simDays),
+                       customers=sample(c(8,10,12,14), 
+                                        size=simDays, 
+                                        prob=c(0.35, 0.30, 0.25, 0.10),
+                                        replace=TRUE),
+                       dozenOrdered=rep(NA, simDays),
+                       revenue=rep(NA, simDays),
+                       lostProfit=rep(NA, simDays),
+                       salvage=rep(NA, simDays),
+                       dailyCost=rep(NA, simDays),
+                       dailyProfit=rep(NA, simDays))
+
+for(i in seq(1, nrow(simTable)))
+{
+  bagelsOrdered <- sample(c(1,2,3,4),
+                          size=simTable[i,]$customers,
+                          prob=c(0.4, 0.3, 0.2, 0.1),
+                          replace=TRUE)
+  
+  simTable[i,]$dozenOrdered <- sum(bagelsOrdered)
+  
+  simTable[i,]$revenue <- min(simTable[i,]$dozenOrdered, bagelsMade) * revPerDoz
+  simTable[i,]$lostProfit <- max(simTable[i,]$dozenOrdered - bagelsMade, 0) * (revPerDoz - costPerDoz)
+  simTable[i,]$salvage <- max(bagelsMade - simTable[i,]$dozenOrdered, 0) * (revPerDoz / 2)
+  simTable[i,]$dailyCost <- bagelsMade * costPerDoz
+  simTable[i,]$dailyProfit <- simTable[i,]$revenue + simTable[i,]$salvage - simTable[i,]$dailyCost
+  
+}
+
+kable(simTable)
+
+```
+
+5 day profit is `r sum(simTable$dailyProfit)` at `r bagelsMade` dozen bagels made per day.
