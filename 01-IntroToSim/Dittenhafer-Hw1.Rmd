@@ -340,15 +340,18 @@ Dozen Ordered/Customer | 1   | 2   | 3   | 4
 Probability            | 0.4 | 0.3 | 0.2 | 0.1
 
 Bagels sell for $8.40 per dozen. They cost $5.80 per dozen to make. All bagels not sold at the end of the day
-are sold at half priec to a local grocery store. Based on 5 days of simulation, how many dozen (to the nearest 5 dozen)
+are sold at half price to a local grocery store. Based on 5 days of simulation, how many dozen (to the nearest 5 dozen)
 bagels should be baked each day?
 
 ```{r}
-simDays <- 5
-revPerDoz <- 8.40
-costPerDoz <- 5.80
-bagelsMade <- 15
-simTable <- data.frame(day=seq(1, simDays),
+# Function to define a simulation at a specified 
+# level of dozens of bagels produced.
+bakersProfit <- function(bagelsMade)
+{
+  simDays <- 5
+  revPerDoz <- 8.40
+  costPerDoz <- 5.80
+  simTable <- data.frame(day=seq(1, simDays),
                        customers=sample(c(8,10,12,14), 
                                         size=simDays, 
                                         prob=c(0.35, 0.30, 0.25, 0.10),
@@ -360,25 +363,119 @@ simTable <- data.frame(day=seq(1, simDays),
                        dailyCost=rep(NA, simDays),
                        dailyProfit=rep(NA, simDays))
 
-for(i in seq(1, nrow(simTable)))
-{
-  bagelsOrdered <- sample(c(1,2,3,4),
-                          size=simTable[i,]$customers,
-                          prob=c(0.4, 0.3, 0.2, 0.1),
-                          replace=TRUE)
+  for(i in seq(1, nrow(simTable)))
+  {
+    bagelsOrdered <- sample(c(1,2,3,4),
+                            size=simTable[i,]$customers,
+                            prob=c(0.4, 0.3, 0.2, 0.1),
+                            replace=TRUE)
+    
+    simTable[i,]$dozenOrdered <- sum(bagelsOrdered)
+    
+    simTable[i,]$revenue <- min(simTable[i,]$dozenOrdered, bagelsMade) * revPerDoz
+    simTable[i,]$lostProfit <- max(simTable[i,]$dozenOrdered - bagelsMade, 0) * (revPerDoz - costPerDoz)
+    simTable[i,]$salvage <- max(bagelsMade - simTable[i,]$dozenOrdered, 0) * (revPerDoz / 2)
+    simTable[i,]$dailyCost <- bagelsMade * costPerDoz
+    simTable[i,]$dailyProfit <- simTable[i,]$revenue + simTable[i,]$salvage - simTable[i,]$dailyCost
+  }
   
-  simTable[i,]$dozenOrdered <- sum(bagelsOrdered)
-  
-  simTable[i,]$revenue <- min(simTable[i,]$dozenOrdered, bagelsMade) * revPerDoz
-  simTable[i,]$lostProfit <- max(simTable[i,]$dozenOrdered - bagelsMade, 0) * (revPerDoz - costPerDoz)
-  simTable[i,]$salvage <- max(bagelsMade - simTable[i,]$dozenOrdered, 0) * (revPerDoz / 2)
-  simTable[i,]$dailyCost <- bagelsMade * costPerDoz
-  simTable[i,]$dailyProfit <- simTable[i,]$revenue + simTable[i,]$salvage - simTable[i,]$dailyCost
-  
+  return(simTable)
 }
-
-kable(simTable)
-
+# Loop over a range of dozens of bagels (0, 5, 10, etc)
+dozens <- seq(0, 30, by=5)
+profitTable <- data.frame(dozPerDay=c(), fiveDayProfit=c())
+for(d in dozens)
+{
+  # Run the simulation for the given level of production
+  simTable <- bakersProfit(d)
+  profitTable <- rbind(profitTable, cbind(dozPerDay=d, fiveDayProfit=sum(simTable$dailyProfit)))
+  #print(paste(d, " dozen/day: 5 day profit is ", profitTable[profitTable$dozPerDay==d,]$fiveDayProfit, ".", sep=""))  
+}
 ```
 
-5 day profit is `r sum(simTable$dailyProfit)` at `r bagelsMade` dozen bagels made per day.
+The following table shows the profit associated with various levels of production:
+
+```{r, echo=FALSE}
+# Show the profit table at various dozens
+kable(profitTable)
+# Extract the row with max profit
+profitMax <- profitTable[order(profitTable$fiveDayProfit, decreasing=TRUE)[1],]
+```
+
+The following table shows the details of the simulation for the maximum profit shown above (`r profitMax$dozPerDay` dozen bagels/day):
+
+```{r, echo=FALSE}
+
+
+# Re-run for the max profit dozens
+maxProfitSimTable <- bakersProfit(profitMax$dozPerDay)
+# Show the max profits sim table.
+kable(maxProfitSimTable)
+```
+
+
+## 2.4
+
+Smalltown Taxi operates one vehicle during the 9:00 A.M. to 5:00 P.M. period. Currently, consideration is being given to the addition of a second vehicle to the fleet. The demand for taxis follows the distribution shown:
+
+Time Between Calls (minutes) | 15   | 20  | 25  | 30  | 35
+-----------------------------|------|-----|-----|-----|-----
+Probability                  | 0.14 | 0.22| 0.43| 0.17| 0.04
+
+The distribution of time to complete a service is as follows:
+
+Service Time (minutes) |   5   |  15  |  25  |  35  |  45 
+-----------------------|-------|------|------|------|------
+Probability            |  0.12 | 0.35 | 0.43 | 0.06 | 0.04
+
+Simulate 5 individual days of operation of the current system and of the system with an 
+additional taxicab. Compare the two systems with respect to the waiting times of the customers
+and any other measures that might shed light on the situation.
+
+```{r}
+
+singleTaxiDailyCalls <- function(callsPerDay, maxDailyMinutes)
+{
+  # Create a data frame of the new customers and their jobs
+  simTable <- data.frame(customer=seq(1, callsPerDay), 
+                        iaMins=sample(seq(15, 35, by=5), 
+                                                size=callsPerDay, 
+                                                prob=c(0.14, 0.22, 0.43, 0.17, 0.04), 
+                                                replace=TRUE), 
+                        arrivalMins=rep(0, callsPerDay),
+                        svcTimeMins=sample(seq(5, 45, by=10), 
+                                                size=callsPerDay, 
+                                                prob=c(0.12, 0.35, 0.43, 0.06, 0.04), 
+                                                replace=TRUE),
+                        timeSvcBegin=rep(0, callsPerDay),
+                        queueWaitMins=rep(0, callsPerDay),
+                        timeSvcEnd=rep(0, callsPerDay),
+                        timeInSystem=rep(0, callsPerDay))
+  
+  # Determine overall arrival times
+  simTable$arrivalMins <- cumsum(simTable$iaMins) 
+  # Loop over the rows the compute the various activity and clock times
+  for(i in seq(1, nrow(simTable)))
+  {
+    if(i == 1)
+    {
+      simTable[i,]$timeSvcBegin <- simTable[i,]$arrivalMins
+         
+    }
+    else
+    {
+      simTable[i,]$timeSvcBegin <- max(simTable[i,]$arrivalMins, simTable[i-1,]$timeSvcEnd)
+    }
+    simTable[i,]$queueWaitMins <- simTable[i,]$timeSvcBegin - simTable[i,]$arrivalMins 
+    simTable[i,]$timeSvcEnd <- simTable[i,]$timeSvcBegin + simTable[i,]$svcTimeMins
+    simTable[i,]$timeInSystem <- simTable[i,]$timeSvcEnd - simTable[i,]$arrivalMins
+  }  
+  
+  return(simTable)
+}
+
+oneDayOneTaxi <- singleTaxiDailyCalls(32)
+
+# Show the table
+kable(oneDayOneTaxi)
+```
