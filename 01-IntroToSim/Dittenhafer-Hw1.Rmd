@@ -4,11 +4,21 @@ subtitle: "DATA604 Simulation and Modeling"
 author: "Daniel Dittenhafer"
 date: "February 2, 2016"
 output: pdf_document
+classoption: landscape
 geometry: margin=0.5in
 ---
 ```{r, echo=FALSE}
 library(knitr)
+library(ggplot2)
 set.seed(20275)
+# My ggplot theme
+myTheme <- theme(axis.ticks=element_blank(),
+                 axis.title=element_text(size="10"),
+                  panel.border = element_rect(color="gray", fill=NA), 
+                  panel.background=element_rect(fill="#FBFBFB"), 
+                  panel.grid.major.y=element_line(color="white", size=0.5), 
+                  panel.grid.major.x=element_line(color="white", size=0.5),
+                  plot.title=element_text(size="10"))
 ```
 
 ## 1.1
@@ -432,8 +442,10 @@ Simulate 5 individual days of operation of the current system and of the system 
 additional taxicab. Compare the two systems with respect to the waiting times of the customers
 and any other measures that might shed light on the situation.
 
-```{r}
+### One Taxi Simulation
 
+```{r}
+# Function to wrap a single taxi cab on a single day
 singleTaxiDailyCalls <- function(callsPerDay, maxDailyMinutes)
 {
   # Create a data frame of the new customers and their jobs
@@ -470,12 +482,209 @@ singleTaxiDailyCalls <- function(callsPerDay, maxDailyMinutes)
     simTable[i,]$timeSvcEnd <- simTable[i,]$timeSvcBegin + simTable[i,]$svcTimeMins
     simTable[i,]$timeInSystem <- simTable[i,]$timeSvcEnd - simTable[i,]$arrivalMins
   }  
+  # Convert queue wait of zero to NA so we can aggregate only those who actually waited.
+  simTable$queueWaitMins[simTable$queueWaitMins == 0] <- NA
+  # subset to the max daily minutes in the business day
+  simTable <- simTable[simTable$arrivalMins <= maxDailyMinutes,]
+  
+  return(simTable)
+}
+```
+
+The following code segment executes the **single** taxi simulation over 5 days and aggregates the results. 
+
+```{r}
+# Run the single taxi simulation over 5 days
+daysToSimulate <- 5
+multiDaySimTable <- data.frame()
+for(i in seq(1, daysToSimulate))
+{
+  oneDayOneTaxi <- singleTaxiDailyCalls(32, 480)
+  multiDaySimTableOneTaxi <- rbind(multiDaySimTable, cbind(day=i, oneDayOneTaxi))
+}
+kable(multiDaySimTableOneTaxi)
+# Show the table
+kable(summary(multiDaySimTableOneTaxi[,c(2,7,9)]))
+```
+
+### 2 Taxi Simulation
+
+Now lets develop the 2 taxi simulation.
+
+```{r}
+# Function to wrap a duel taxi cab company on a single day
+duelTaxiDailyCalls <- function(callsPerDay, maxDailyMinutes)
+{
+  # Create a data frame of the new customers and their jobs
+  simTable <- data.frame(customer=seq(1, callsPerDay), 
+                        iaMins=sample(seq(15, 35, by=5), 
+                                                size=callsPerDay, 
+                                                prob=c(0.14, 0.22, 0.43, 0.17, 0.04), 
+                                                replace=TRUE), 
+                        arrivalMins=rep(0, callsPerDay),
+                        tc1Avail=rep(0, callsPerDay),
+                        tc2Avail=rep(0, callsPerDay),
+                        taxiChosen=rep(0, callsPerDay),
+                        svcTimeMins=sample(seq(5, 45, by=10), 
+                                                size=callsPerDay, 
+                                                prob=c(0.12, 0.35, 0.43, 0.06, 0.04), 
+                                                replace=TRUE),
+                        timeSvcBegin=rep(0, callsPerDay),
+                        timeSvcEndTc1=rep(0, callsPerDay),
+                        timeSvcEndTc2=rep(0, callsPerDay),
+                        queueWaitMins=rep(0, callsPerDay),
+                        timeInSystem=rep(0, callsPerDay))
+  
+  # Determine overall arrival times
+  simTable$arrivalMins <- cumsum(simTable$iaMins) 
+  # Loop over the rows the compute the various activity and clock times
+  for(i in seq(1, nrow(simTable)))
+  {
+    if(i == 1)
+    {
+      simTable[i,]$timeSvcBegin <- simTable[i,]$arrivalMins
+      simTable[i,]$taxiChosen <- 1
+    }
+    else
+    {
+      # Determine availability
+      simTable[i,]$tc1Avail <- max(simTable[seq(1, i),]$timeSvcEndTc1)
+      simTable[i,]$tc2Avail <- max(simTable[seq(1, i),]$timeSvcEndTc2)
+      # Select taxi
+      simTable[i,]$taxiChosen <- if (simTable[i,]$tc1Avail <= simTable[i,]$arrivalMins || 
+                                     simTable[i,]$tc1Avail <= simTable[i,]$tc2Avail) 1 else 2      
+      # Determine service start based on selected taxi
+      simTable[i,]$timeSvcBegin <- if(simTable[i,]$taxiChosen == 1) max(simTable[i,]$arrivalMins, 
+                                                                        simTable[i-1,]$tc1Avail) else max(simTable[i,]$arrivalMins, 
+                                                                                                          simTable[i-1,]$tc2Avail)
+    }
+    simTable[i,]$timeSvcEndTc1 <- if(simTable[i,]$taxiChosen == 1) simTable[i,]$timeSvcBegin + simTable[i,]$svcTimeMins else 0
+    simTable[i,]$timeSvcEndTc2 <- if(simTable[i,]$taxiChosen == 2) simTable[i,]$timeSvcBegin + simTable[i,]$svcTimeMins else 0
+    simTable[i,]$queueWaitMins <- simTable[i,]$timeSvcBegin - simTable[i,]$arrivalMins 
+    simTable[i,]$timeInSystem <- max(simTable[i,]$timeSvcEndTc1, simTable[i,]$timeSvcEndTc2) - simTable[i,]$arrivalMins
+  }  
+  # Convert queue wait of zero to NA so we can aggregate only those who actually waited.
+  simTable$queueWaitMins[simTable$queueWaitMins == 0] <- NA
+  # subset to the max daily minutes in the business day
+  simTable <- simTable[simTable$arrivalMins <= maxDailyMinutes,]
+  
+  return(simTable)
+}
+```
+
+The following table shows the execution of a single day for the **two** taxi simulation.
+
+```{r, echo=FALSE}
+kable(duelTaxiDailyCalls(32, 480))
+```
+
+The following code segment executes the two taxi simulation over 5 days and aggregates the results. 
+
+```{r}
+# Run the two taxi simulation over 5 days
+daysToSimulate <- 5
+multiDaySimTable <- data.frame()
+for(i in seq(1, daysToSimulate))
+{
+  oneDayTwoTaxi <- duelTaxiDailyCalls(32, 480)
+  multiDaySimTable <- rbind(multiDaySimTable, cbind(day=i, oneDayTwoTaxi))
+}
+kable(multiDaySimTable)
+# Show the table
+kable(summary(multiDaySimTable[,c(2,12,13)]))
+```
+
+As can be seen in the column chart below, Taxi 1 has a much larger number of customers, 
+but Taxi 2 does pick up approximately 20% of the customers.
+
+```{r}
+g1 <- ggplot(multiDaySimTable) + 
+  geom_bar(aes(x=taxiChosen)) +
+  labs(title="Distribution of Taxi Customers")  + myTheme
+g1
+```
+
+## 2.5
+
+The random variables X, Y, and Z are distributed as follows:
+
+\[X ~ N (\mu = 100, \sigma^2=100) \]
+
+\[Y ~ N (\mu = 300, \sigma^2=225) \]
+
+\[Z ~ N (\mu = 40, \sigma^2=64) \]
+
+Simulate 50 values of the random variable
+
+\[W=\frac{X+Y}{Z}\]
+
+Prepare a histogram of the resulting values, using class intervals of width equal to 3.
+
+```{r}
+fxX <- function (n)
+{
+  return (rnorm(n, 100, 10))
+}
+
+fxY <- function(n)
+{
+  return (rnorm(n, 300, 15))
+}
+
+fxZ <- function(n)
+{
+  return (rnorm(n, 40, 8))
+}
+
+n <- 50
+dfVars <- data.frame(X=fxX(n), Y=fxY(n), Z= fxZ(n))
+dfVars$W <- ( dfVars$X + dfVars$Y ) / dfVars$Z
+```
+
+The first 5 resulting random variables and the values of W are shown in the table below.
+
+```{r, echo=FALSE}
+kable(head(dfVars))
+```
+
+```{r, echo=FALSE}
+g2 <- ggplot(dfVars) + geom_histogram(aes(x=W), binwidth=3) + myTheme
+g2
+```
+
+## 2.7
+
+Estimate, by simulation, th eaverage number of lost sales per week for an inventory system that functions as follows:
+
+(a) Whenever the inventory level falls to or below 10 unites, an order is placed. Only on order can be outstanding at a time.
+
+(b) The size of each order is equal to 20 - I, where I is the inventory level when the order is placed.
+
+(c) If a demand occurs during a period when the inventory level is zero, the sale is lost.
+
+(d) Daily demand is normally distributed, with a mean of 5 units and a standard deviation of 1.5 unites. (Round off decimals to the closest integer during the simulation and, if a negative value results, give it a demand of zero.)
+
+(e) Lead time is distributed  uniformly between zero and 5 days - integers only.
+
+(f)  The simulation will start with 18 units in inventory.
+
+(g) For simplicity, assume that orders are placed at th eclose of the business dawy and received after the lead time has occured. Thus, if lead time is one day, the order is available for distribution on the monring of the second day of business following the placement of the order.
+
+(h)  Let the simulation run for 5 weeks.
+
+```{r}
+inventorySim <- function(daysToSimulate)
+{
+  simTable <- data.frame(day=seq(0, daysToSimulate),
+                         )
   
   return(simTable)
 }
 
-oneDayOneTaxi <- singleTaxiDailyCalls(32)
+daysToSim <- 5 * 7
+inventorySimTable <- inventorySim(daysToSim)
+```
 
-# Show the table
-kable(oneDayOneTaxi)
+```{r, echo=FALSE}
+kable(inventorySimTable)
 ```
