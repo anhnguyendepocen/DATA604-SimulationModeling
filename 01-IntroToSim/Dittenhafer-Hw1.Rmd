@@ -654,9 +654,9 @@ g2
 
 ## 2.7
 
-Estimate, by simulation, th eaverage number of lost sales per week for an inventory system that functions as follows:
+Estimate, by simulation, the average number of lost sales per week for an inventory system that functions as follows:
 
-(a) Whenever the inventory level falls to or below 10 unites, an order is placed. Only on order can be outstanding at a time.
+(a) Whenever the inventory level falls to or below 10 unites, an order is placed. Only one order can be outstanding at a time.
 
 (b) The size of each order is equal to 20 - I, where I is the inventory level when the order is placed.
 
@@ -668,21 +668,66 @@ Estimate, by simulation, th eaverage number of lost sales per week for an invent
 
 (f)  The simulation will start with 18 units in inventory.
 
-(g) For simplicity, assume that orders are placed at th eclose of the business dawy and received after the lead time has occured. Thus, if lead time is one day, the order is available for distribution on the monring of the second day of business following the placement of the order.
+(g) For simplicity, assume that orders are placed at the close of the business day and received after the lead time has occured. Thus, if lead time is one day, the order is available for distribution on the morning of the second day of business following the placement of the order.
 
 (h)  Let the simulation run for 5 weeks.
 
 ```{r}
-inventorySim <- function(daysToSimulate)
+inventorySim <- function(daysToSimulate, daysPerWeek)
 {
   simTable <- data.frame(day=seq(0, daysToSimulate),
-                         )
+                         #cycle=
+                         dayInCycle=c(daysPerWeek, rep(seq(1, daysPerWeek), daysToSimulate / daysPerWeek)),
+                         beginInv=c(NA, rep(NA, daysToSimulate)),
+                         demand=c(NA, round(rnorm(daysToSimulate, mean=5, sd=1.5))),
+                         endInv=c(18, rep(NA, daysToSimulate)),
+                         shortage=c(0, rep(NA, daysToSimulate)),
+                         pendingOrder=c(0, rep(0, daysToSimulate)),
+                         leadTime=c(NA, rep(NA, daysToSimulate)),
+                         orderArriveDays=c(0, rep(0, daysToSimulate)))
+  
+  # Loop over the rows the compute the various activity and clock times
+  for(i in seq(1, nrow(simTable)))
+  {
+    if(i == 1)
+    {
+      
+    }
+    else
+    {
+      pendingO <- 0
+      if(simTable[i-1,]$orderArriveDays == 1) 
+      {
+        pendingO <- simTable[i-1,]$pendingOrder
+        simTable[i-1,]$pendingOrder <- 0
+      }
+      
+      simTable[i,]$beginInv <- simTable[i-1,]$endInv + pendingO
+      
+      endI <- simTable[i,]$beginInv - simTable[i,]$demand - simTable[i-1,]$shortage
+      simTable[i,]$endInv <- max(endI, 0)
+      simTable[i,]$shortage <- if(endI < 0) simTable[i-1,]$shortage + simTable[i,]$demand - simTable[i,]$beginInv else 0
+      
+      # Ordering
+      if(simTable[i,]$endInv <= 10 && simTable[i-1,]$pendingOrder == 0)
+      {
+        simTable[i,]$pendingOrder <- 20 - simTable[i,]$endInv
+        simTable[i,]$leadTime <- round(runif(1, 0, 5))
+        simTable[i,]$orderArriveDays <- simTable[i,]$leadTime
+      }
+      else
+      {
+        simTable[i,]$orderArriveDays <- if(simTable[i-1,]$orderArriveDays > 0) simTable[i-1,]$orderArriveDays - 1 else 0
+        simTable[i,]$pendingOrder <- simTable[i-1,]$pendingOrder
+      }
+    }
+  }
   
   return(simTable)
 }
 
-daysToSim <- 5 * 7
-inventorySimTable <- inventorySim(daysToSim)
+daysToSim <- 5 * 5
+inventorySimTable <- inventorySim(daysToSim, 5)
 ```
 
 ```{r, echo=FALSE}
