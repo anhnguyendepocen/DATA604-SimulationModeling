@@ -589,7 +589,7 @@ for(i in seq(1, daysToSimulate))
   oneDayTwoTaxi <- duelTaxiDailyCalls(32, 480)
   multiDaySimTable <- rbind(multiDaySimTable, cbind(day=i, oneDayTwoTaxi))
 }
-kable(multiDaySimTable)
+#kable(multiDaySimTable)
 # Show the table
 kable(summary(multiDaySimTable[,c(2,12,13)]))
 ```
@@ -597,7 +597,7 @@ kable(summary(multiDaySimTable[,c(2,12,13)]))
 As can be seen in the column chart below, Taxi 1 has a much larger number of customers, 
 but Taxi 2 does pick up approximately 20% of the customers.
 
-```{r}
+```{r, echo=FALSE}
 g1 <- ggplot(multiDaySimTable) + 
   geom_bar(aes(x=taxiChosen)) +
   labs(title="Distribution of Taxi Customers")  + myTheme
@@ -673,15 +673,14 @@ Estimate, by simulation, the average number of lost sales per week for an invent
 (h)  Let the simulation run for 5 weeks.
 
 ```{r}
-inventorySim <- function(daysToSimulate)
+inventorySim <- function(daysToSimulate, daysPerWeek)
 {
   simTable <- data.frame(day=seq(0, daysToSimulate),
-                         #cycle=
                          #dayInCycle=c(daysPerWeek, rep(seq(1, daysPerWeek), daysToSimulate / daysPerWeek)),
                          beginInv=c(NA, rep(NA, daysToSimulate)),
                          demand=c(NA, round(rnorm(daysToSimulate, mean=5, sd=1.5))),
                          endInv=c(18, rep(NA, daysToSimulate)),
-                         lostSale=rep(0, daysToSimulate + 1),
+                         lostSales=rep(NA, daysToSimulate + 1),
                          #shortage=c(0, rep(NA, daysToSimulate)),
                          pendingOrder=c(0, rep(0, daysToSimulate)),
                          leadTime=c(NA, rep(NA, daysToSimulate)),
@@ -707,7 +706,7 @@ inventorySim <- function(daysToSimulate)
       simTable[i,]$beginInv <- simTable[i-1,]$endInv + pendingO
       if(simTable[i,]$demand > 0 && simTable[i,]$beginInv == 0)
       {
-        simTable[i,]$lostSale <- 1
+        simTable[i,]$lostSales <- simTable[i,]$demand
       }
       # Adjust ending inventory
       endI <- simTable[i,]$beginInv - simTable[i,]$demand #- simTable[i-1,]$shortage
@@ -737,10 +736,196 @@ inventorySim <- function(daysToSimulate)
 }
 
 # Days based on 5 biz days/wk for n weeks
-daysToSim <- 5 * 5
+weeksToSim <- 5
+daysToSim <- 5 * weeksToSim
 inventorySimTable <- inventorySim(daysToSim)
 ```
 
 ```{r, echo=FALSE}
 kable(inventorySimTable)
+```
+
+Based on the previously shown simulation data, the average lost sales per week 
+are `r sum(inventorySimTable$lostSales, na.rm=TRUE) / weeksToSim`. 
+
+```{r, echo=FALSE, warning=FALSE}
+g1 <- ggplot(inventorySimTable) + 
+  geom_point(aes(x=day, y=lostSales), colour="red") +
+  geom_line(aes(x=day, y=beginInv), colour="lightblue") +
+  labs(title="Lost Sales Simulation", y="Inventory Level") +
+  myTheme 
+g1
+```
+
+## 2.8
+
+An elevator in a manufacturing plant carries exactly 400 kilograms of material. There are
+three kinds of material packaged in boxes that arrive for a ride on the elavator. These materials
+and their distributions of time between arrivals are as follows:
+
+Material  | Weight (kg) | Interarrival Time  (minutes)
+----------|-------------|-----------------------------
+A         |  200        | 5 +- 2 (uniform)
+B         |  100        | 6 (constant)
+C         |   50        | P(2) = 0.33, P(3) = 0.67
+
+It takes the elevator 1 minute to go up to the second floor, 2 minutes to unload, and 1 minute to return to the first floor.
+The elevator does not leave the first floor unless it has a full load. Simulate 1 hour of operation of the system. What is the average transit time for a box of material A (time from its arrival until it is unloaded)? What ist he average waiting time for a box of material B? How many boxes of material C made the trip in 1 hour?
+
+```{r}
+# Function to wrap a single taxi cab on a single day
+materialElevatorSim <- function(n, simMinutes, elevatorCapacity, travelUpMin, unloadMin, travelDownMin)
+{
+  # Material A interarrivals
+  matAIA <- data.frame(mat=rep("A", n), 
+                       weight=rep(200, n),
+                       matIA=sample(c(3, 7), 
+                        size=n, 
+                        prob=c(0.50, 0.50), 
+                        replace=TRUE))
+  matAIA$arrivalTime <- cumsum(matAIA$matIA)   
+  # Material B interarrivals                     
+  matBIA <- data.frame(mat=rep("B", n), 
+                       weight=rep(100, n),
+                       matIA=rep(6, n))
+  matBIA$arrivalTime <- cumsum(matBIA$matIA)   
+  # Material C interarrivals
+  matCIA <- data.frame(mat=rep("C", n), 
+                       weight=rep(50, n),
+                       matIA=sample(c(2, 3), 
+                        size=n, 
+                        prob=c(0.33, 0.67), 
+                        replace=TRUE))
+  matCIA$arrivalTime <- cumsum(matCIA$matIA)   
+  
+  materialArrivals <- rbind(matAIA, matBIA, matCIA)
+  materialArrivals <- materialArrivals[with(materialArrivals, order(arrivalTime)),]
+  
+  simTable <- materialArrivals
+  simTable$cumWeight <- rep(0, nrow(simTable))
+  simTable$waiting <- rep(1, nrow(simTable))
+  simTable$svcBeginTime <- rep(0, nrow(simTable))
+  simTable$svcEndTime <- rep(0, nrow(simTable))
+  simTable$waitTimeMins <- rep(0, nrow(simTable))
+  simTable$transitTime <- rep(0, nrow(simTable))
+  
+  # Loop over the rows the compute the various activity and clock times
+  for(i in seq(1, nrow(simTable)))
+  {
+    # Compute cumulative waiting weight
+    if(i == 1)
+    {
+      simTable[i,]$cumWeight <- simTable[i,]$weight
+    }
+    else
+    {
+      cumWaitingWeight <- 0
+      for(j in seq(1,i))
+      {
+        if(simTable[j,]$waiting == 1)
+        {
+          cumWaitingWeight <- cumWaitingWeight + simTable[j,]$weight
+        }
+      }
+      simTable[i,]$cumWeight <- cumWaitingWeight 
+    }
+  
+    # Determine riders this iteration
+    if(simTable[i,]$cumWeight >= elevatorCapacity)
+    {
+      # Determine which items move on to elevator and which don't
+      riders <- c()
+      if(simTable[i,]$cumWeight == elevatorCapacity)
+      {
+        # Mark all waiters as riders
+        for(j in seq(1, i))
+        {
+          if(simTable[j,]$waiting == 1)
+          {
+            riders <- c(riders, j)
+          }
+        }
+      }
+      else
+      {
+        # Find waiters that fit
+        diff <- simTable[i,]$cumWeight - elevatorCapacity
+        excluder <- 0
+        for(j in seq(i, 1, by=-1))
+        {
+          if(simTable[j,]$waiting == 1 && simTable[j,]$weight == diff)
+          {
+            excluder <- j
+            break;
+          }
+        }   
+        
+        for(j in seq(1, i))
+        {
+          if(simTable[j,]$waiting == 1 && j != excluder)
+          {
+            riders <- c(riders, j)
+          }
+        }            
+      }
+      
+      for(k in riders)
+      {
+        simTable[k,]$waiting <- 0
+        simTable[k,]$svcBeginTime <- max(simTable[i,]$arrivalTime, simTable[i,]$svcEndTime + travelDownMin)
+        simTable[k,]$svcEndTime <- simTable[k,]$svcBeginTime + travelUpMin + unloadMin        
+      }
+    }
+    
+    #simTable[i,]$waitTimeMins <- 
+    
+    
+#     simTable[i,]$queueWaitMins <- simTable[i,]$timeSvcBegin - simTable[i,]$arrivalMins 
+#     simTable[i,]$timeSvcEnd <- simTable[i,]$timeSvcBegin + simTable[i,]$svcTimeMins
+#     simTable[i,]$timeInSystem <- simTable[i,]$timeSvcEnd - simTable[i,]$arrivalMins
+  }  
+  # Convert queue wait of zero to NA so we can aggregate only those who actually waited.
+  #simTable$queueWaitMins[simTable$queueWaitMins == 0] <- NA
+
+  simTable$transitTime <- simTable$svcEndTime - simTable$arrivalTime
+  simTable[simTable$transitTime < 0,]$transitTime <- NA
+  
+  simTable$waitTimeMins <- simTable$svcBeginTime - simTable$arrivalTime
+  simTable[simTable$waitTimeMins < 0,]$waitTimeMins <- NA
+  
+  # Subset to the max simulation minutes 
+  simTable <- simTable[simTable$arrivalTime <= simMinutes,]
+  
+  return(simTable)
+}
+
+materialSimTable <- materialElevatorSim(60, 60, 400, 1, 2, 1)
+rownames(materialSimTable) <- seq(1, nrow(materialSimTable))
+```
+
+
+```{r, echo=FALSE}
+kable(materialSimTable)
+```
+
+Average transit time for material A in computed below:
+
+```{r}
+transitTimeA <- mean(materialSimTable[materialSimTable$mat == "A",]$transitTime, na.rm=TRUE)
+transitTimeA
+```
+
+Average waiting time for material B is computed below:
+
+```{r}
+waitTimeMinsB <- mean(materialSimTable[materialSimTable$mat == "B",]$waitTimeMins, na.rm=TRUE)
+waitTimeMinsB
+```
+
+Number of  material C which received service is computed below:
+
+```{r}
+countCserviced <- nrow(materialSimTable[materialSimTable$mat == "C" & 
+                                          materialSimTable$waiting == 0,])
+countCserviced
 ```
