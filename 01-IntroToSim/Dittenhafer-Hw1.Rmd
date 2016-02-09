@@ -673,15 +673,16 @@ Estimate, by simulation, the average number of lost sales per week for an invent
 (h)  Let the simulation run for 5 weeks.
 
 ```{r}
-inventorySim <- function(daysToSimulate, daysPerWeek)
+inventorySim <- function(daysToSimulate)
 {
   simTable <- data.frame(day=seq(0, daysToSimulate),
                          #cycle=
-                         dayInCycle=c(daysPerWeek, rep(seq(1, daysPerWeek), daysToSimulate / daysPerWeek)),
+                         #dayInCycle=c(daysPerWeek, rep(seq(1, daysPerWeek), daysToSimulate / daysPerWeek)),
                          beginInv=c(NA, rep(NA, daysToSimulate)),
                          demand=c(NA, round(rnorm(daysToSimulate, mean=5, sd=1.5))),
                          endInv=c(18, rep(NA, daysToSimulate)),
-                         shortage=c(0, rep(NA, daysToSimulate)),
+                         lostSale=rep(0, daysToSimulate + 1),
+                         #shortage=c(0, rep(NA, daysToSimulate)),
                          pendingOrder=c(0, rep(0, daysToSimulate)),
                          leadTime=c(NA, rep(NA, daysToSimulate)),
                          orderArriveDays=c(0, rep(0, daysToSimulate)))
@@ -691,34 +692,43 @@ inventorySim <- function(daysToSimulate, daysPerWeek)
   {
     if(i == 1)
     {
-      
+      # Do nothing on first row (zeroth)
     }
     else
     {
+      # Are any orders arriving today?
       pendingO <- 0
-      if(simTable[i-1,]$orderArriveDays == 1) 
+      if(simTable[i-1,]$orderArriveDays <= 1) 
       {
         pendingO <- simTable[i-1,]$pendingOrder
-        simTable[i-1,]$pendingOrder <- 0
+        simTable[i,]$pendingOrder <- 0
       }
-      
+      # Adjust begining inventory based on prior ending plus arriving orders
       simTable[i,]$beginInv <- simTable[i-1,]$endInv + pendingO
-      
-      endI <- simTable[i,]$beginInv - simTable[i,]$demand - simTable[i-1,]$shortage
+      if(simTable[i,]$demand > 0 && simTable[i,]$beginInv == 0)
+      {
+        simTable[i,]$lostSale <- 1
+      }
+      # Adjust ending inventory
+      endI <- simTable[i,]$beginInv - simTable[i,]$demand #- simTable[i-1,]$shortage
       simTable[i,]$endInv <- max(endI, 0)
-      simTable[i,]$shortage <- if(endI < 0) simTable[i-1,]$shortage + simTable[i,]$demand - simTable[i,]$beginInv else 0
       
       # Ordering
-      if(simTable[i,]$endInv <= 10 && simTable[i-1,]$pendingOrder == 0)
+      if(simTable[i,]$endInv <= 10 && simTable[i-1,]$orderArriveDays <= 1)
       {
+        # New Order
         simTable[i,]$pendingOrder <- 20 - simTable[i,]$endInv
         simTable[i,]$leadTime <- round(runif(1, 0, 5))
         simTable[i,]$orderArriveDays <- simTable[i,]$leadTime
       }
       else
       {
+        # Adjust arrival days for pending orders
         simTable[i,]$orderArriveDays <- if(simTable[i-1,]$orderArriveDays > 0) simTable[i-1,]$orderArriveDays - 1 else 0
-        simTable[i,]$pendingOrder <- simTable[i-1,]$pendingOrder
+        if(simTable[i,]$orderArriveDays > 0)
+        {
+          simTable[i,]$pendingOrder <- simTable[i-1,]$pendingOrder  
+        }
       }
     }
   }
@@ -726,8 +736,9 @@ inventorySim <- function(daysToSimulate, daysPerWeek)
   return(simTable)
 }
 
+# Days based on 5 biz days/wk for n weeks
 daysToSim <- 5 * 5
-inventorySimTable <- inventorySim(daysToSim, 5)
+inventorySimTable <- inventorySim(daysToSim)
 ```
 
 ```{r, echo=FALSE}
