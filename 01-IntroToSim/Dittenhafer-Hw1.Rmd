@@ -412,11 +412,9 @@ kable(profitTable)
 profitMax <- profitTable[order(profitTable$fiveDayProfit, decreasing=TRUE)[1],]
 ```
 
-The following table shows the details of the simulation for the maximum profit shown above (`r profitMax$dozPerDay` dozen bagels/day):
+In order to maximize profit, the baker should bake `r profitMax$dozPerDay` dozen bagels/day as shown in the table above. The following table shows the details of the simulation related to the maximum profit shown above:
 
 ```{r, echo=FALSE}
-
-
 # Re-run for the max profit dozens
 maxProfitSimTable <- bakersProfit(profitMax$dozPerDay)
 # Show the max profits sim table.
@@ -746,7 +744,7 @@ kable(inventorySimTable)
 ```
 
 Based on the previously shown simulation data, the average lost sales per week 
-are `r sum(inventorySimTable$lostSales, na.rm=TRUE) / weeksToSim`. 
+are `r sum(inventorySimTable$lostSales, na.rm=TRUE) / weeksToSim`. The following chart shows lost sales as red points and the blue line represents the inventory levels during the simulation.
 
 ```{r, echo=FALSE, warning=FALSE}
 g1 <- ggplot(inventorySimTable) + 
