@@ -60,3 +60,32 @@ secondMoment <- prX1 + (2^2*prX2) + (3^2*prX3)
 The expected value \(E[X] = 1 \times `r prX1` + 2 \times `r prX2` + 3 \times `r prX3` = `r ExpVal` \).
 
 The variance \(Var(X)=E[X^2] - (E[X])^2= `r secondMoment` -  `r ExpVal^2` = `r secondMoment - ExpVal^2`\)
+
+## 2
+
+*Suppose that X is a continuous random variable having p.d.f \(f(x)=cx^2\) for \(1\leq x \leq 2\). Find \(c\), \(Pr(X \geq 1)\), E[X] and Var(X).*
+
+\[\int cx^2 dx= c \int x^2 dx = c \times \frac{x^3}{3} + C \]
+
+\[\int cx^2 dx= c \times \frac{x^3}{3} + C = 1\]
+
+\[ c = \frac{3 \times 1}{x^3} = \frac{3}{x^3} \]
+
+
+
+
+```{r}
+pr2X <- function(x)
+{
+  c <- 3 / x^3
+  return( c * x^2)
+}
+
+r <- seq(1, 2, by=0.1)
+
+pr2Xr <- pr2X(r)
+
+g1 <- ggplot(data=data.frame(x=r, y=pr2Xr)) + geom_point(aes(x=x, y=y))
+g1
+
+```
