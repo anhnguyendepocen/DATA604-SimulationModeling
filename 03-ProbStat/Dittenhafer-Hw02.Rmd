@@ -1,0 +1,62 @@
+---
+title: "Homework 2"
+subtitle: "DATA604 Simulation and Modeling"
+author: "Daniel Dittenhafer"
+date: "February 21, 2016"
+output: pdf_document
+classoption: portrait
+geometry: margin=0.5in
+---
+```{r, echo=FALSE}
+library(knitr)
+library(ggplot2)
+set.seed(20275)
+# My ggplot theme
+myTheme <- theme(axis.ticks=element_blank(),
+                 axis.title=element_text(size="10"),
+                  panel.border = element_rect(color="gray", fill=NA), 
+                  panel.background=element_rect(fill="#FBFBFB"), 
+                  panel.grid.major.y=element_line(color="white", size=0.5), 
+                  panel.grid.major.x=element_line(color="white", size=0.5),
+                  plot.title=element_text(size="10"))
+```
+
+## 1
+
+*Suppose that X is a discrete random variable having probability function \(Pr(X=k) = ck^2\) for \(k=1,2,3\). Find \(c\), \(Pr(X \leq 2)\), E[X] and Var(X).*
+
+This suggests the following:
+
+\[Pr(X=1) + Pr(X=2) + Pr(X=3) = 1\]
+\[1^2c + 2^2c + 3^2c = 1\]
+\[1c + 4c + 9c = 1\]
+\[14c = 1\]
+\[c = \frac{1}{14}\]
+
+```{r}
+# Define an R function for the probability function
+prXk <- function(k)
+{
+  c = 1/14
+  p <- c * k^2
+  
+  return (p)
+}
+
+prX1 <- prXk(1)
+prX1
+prX2 <- prXk(2)
+prX2
+prX3 <- prXk(3)
+prX3
+
+ExpVal <- prX1 + (2*prX2) + (3*prX3)
+
+secondMoment <- prX1 + (2^2*prX2) + (3^2*prX3)
+```
+
+\(Pr(X \leq 2) = `r prX1 + prX2`\)
+
+The expected value \(E[X] = 1 \times `r prX1` + 2 \times `r prX2` + 3 \times `r prX3` = `r ExpVal` \).
+
+The variance \(Var(X)=E[X^2] - (E[X])^2= `r secondMoment` -  `r ExpVal^2` = `r secondMoment - ExpVal^2`\)
