@@ -10,6 +10,7 @@ geometry: margin=0.5in
 ```{r, echo=FALSE}
 library(knitr)
 library(ggplot2)
+library(gridExtra)
 set.seed(20275)
 # My ggplot theme
 myTheme <- theme(axis.ticks=element_blank(),
@@ -219,8 +220,70 @@ Assuming n=b-a and therefore p(x)=1/(n+1) would still apply as in \(R_X=(2,3,4,5
 
 \[\text{mean }\ = \frac{1}{n+1} \times \frac{n(2a+n-1)}{2} = \frac{n(2a+n-1)}{2(n+1)}\]
 
+Variance, hmm....
+
+```{r, echo=FALSE, eval=FALSE}
+s <- 3
+n <- 4
+
+v <- 0
+for(i in seq(s, s+n))
+{
+    v <- v + ( i^2 * (1/n+1))
+}
+
+v
+```
+
+# 5.14
+
+*The lifetime in years of a satellite placed in orbit is given by the following pdf:*
+
+\[f(x) = 0.4e^{-0.4x}, x \geq 0\]
 
 
+*(a) What is the probability that this satellite is still "alive" after 5 years?*
+
+```{r, fig.height=3}
+# Define CDF and PDF functions
+cdf514 <- function(x)
+{
+
+  p <- 1 - exp(-0.4 * x)
+
+  return (p)
+}
+
+pdf514 <- function(x)
+{
+
+  p <- 0.4 * exp(-0.4 * x)
+
+  return (p)
+}
+
+# prepare data set to help us visualize
+rx <- data.frame(x=seq(0, 10, by=0.5))
+rx$cdf <- cdf514(rx$x)
+rx$pdf <- pdf514(rx$x)
+# Visualize
+g1 <- ggplot(rx) + geom_line(aes(x=x, y=pdf)) + myTheme
+g2 <- ggplot(rx) + geom_line(aes(x=x, y=cdf)) + myTheme
+grid.arrange(g1, g2, ncol=2)
+
+p5 <- pdf514(5)
+```
+
+The probability that this satellite is still alive after 5 years is `r p5`.
+
+*(b) What is the probability that the satellite dies between 3 and 6 years from the time it is placed in orbit?*
+
+```{r}
+# Compute probabilty of satelite's life time is between 3-6 years (i.e. it dies in this range)
+p36 <- cdf514(6) - cdf514(3) 
+```
+
+The probabilty that this satellite dies between 3 and 6 years is `r p36`.
 
 
 
