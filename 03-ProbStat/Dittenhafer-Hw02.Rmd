@@ -11,6 +11,7 @@ geometry: margin=0.5in
 library(knitr)
 library(ggplot2)
 library(gridExtra)
+library(plot3D)
 set.seed(20275)
 # My ggplot theme
 myTheme <- theme(axis.ticks=element_blank(),
@@ -75,9 +76,12 @@ The variance \(Var(X)=E[X^2] - (E[X])^2= `r secondMoment` -  `r ExpVal^2` = `r s
 
 The probabilty \(Pr(X \geq 1)\) will equal 1 due to the fact the range is \(1\leq x \leq 2\).
 
-Expected value is 
+Expected value is... hmmm...
+
+The following visualization shows the probability density function:
 
 ```{r}
+# Define an R funciton for the PDF
 pr2X <- function(x)
 {
   c <- 3 / x^3
@@ -97,10 +101,65 @@ g1
 
 ## 3
 
-Suppose the X and Y are jointly continuous random variables with 
+*Suppose the X and Y are jointly continuous random variables with*
 
-\[y-x for 0 < x < 1 \text{ and } 1 < y < 2 \]
+\[y-x \text{ for } 0 < x < 1 \text{ and } 1 < y < 2 \]
 \[0 \text{ otherwise} \]
+
+Assuming \(f_{X,Y}(x,y)=y-x\) is the joint density according to the above constraints:
+
+### a) Compute and plot \(f_X(x)\) and \(f_Y(y)\)
+
+\(f_X(x)\) and \(f_Y(y)\) are the marginal densities, therefore
+
+\(f_X(x) = \int f_{X,Y}(x,y)dy=\frac{1}{2}y^2 - xy\) 
+
+\(f_Y(y) = \int f_{X,Y}(x,y)dx=xy -\frac{1}{2}x^2\) 
+
+```{r}
+f_X <- function(x,y)
+{
+  return ((1/2 * y^2) - (x*y))
+}
+f_Y <- function(x,y)
+{
+  return ((x*y) - (1/2 * x^2) )
+}
+
+x <- seq(0, 1, by=0.01)
+y <- seq(1, 2, by=0.01)
+M <- mesh(x, y)
+surf3D(M$x, M$y, z=f_X(M$x, M$y),  bty = "f", main="f_X Visualization")
+
+
+x <- seq(0, 1, by=0.01)
+y <- seq(1, 2, by=0.01)
+M <- mesh(x, y)
+surf3D(M$x, M$y, z=f_Y(M$x, M$y),  bty = "f", main="f_Y Visualization")
+
+```
+
+### b) Are X and Y independent?
+
+if \(f_{X,Y}(x,y)=f_X(x)f_Y(y)\), we say X, Y are independent.
+
+\(f_X(x)f_Y(y) = (\frac{1}{2}y^2 - xy)(xy -\frac{1}{2}x^2) = \frac{1}{2}xy^3-\frac{5}{4}x^2y^2+\frac{1}{2}x^3y\)
+
+The above is not equal to \(y-x\), therefore X and Y are not independent.
+
+### c) Compute \(F_X(x)\) and \(F_Y(y)\)
+
+\(F_X(x)=\int f_X(x)dx = \int \frac{1}{2}y^2 - xy dx = \int \frac{1}{2}y^2 dx - \int xy dx = \frac{1}{2}xy^2 - \frac{x^2y}{2}\)
+
+
+\(F_Y(y)=\int f_Y(y)dy = \int xy -\frac{1}{2}x^2 dy = \int xy dy - \int \frac{1}{2}x^2 dy = \frac{xy^2}{2} - \frac{1}{2}yx^2 \)
+
+
+### d) Compute E[X], Var(X), E[Y], Var(Y), Cov(X,Y), and Corr(X,Y)
+
+...
+
+
 
 ## 4
 
@@ -163,8 +222,11 @@ for(j in 1:10000)
 ```
 
 
-```{r, fig.height=3}
-g1 <- ggplot(data.frame(sumX=sumX)) + geom_histogram(aes(x=sumX)) + myTheme
+```{r, fig.height=3, warning=FALSE}
+g1 <- ggplot(data.frame(sumX=sumX)) + 
+  geom_histogram(aes(x=sumX)) +
+  labs(title="Distribution of Sums of n=100 Samples from Exp(lambda=1)") +
+  myTheme
 g1
 ```
 
@@ -190,9 +252,13 @@ The mean would be \(\Sigma_{all i} i p(x)\). In this case \(p(x)\) is uniform at
 
 The variance works the same way for discrete distributions, therefore:
 
-\[\text{variance } = \frac{1}{n+1} \times \frac{n(n+1)(2n+1)}{6} = \frac{n(2n+1)}{6}\]
+\[\text{variance } = (\frac{1}{n+1} \times \frac{n(n+1)(2n+1)}{6}) - (\frac{n}{2})^2= \frac{n(2n+1)}{6} - \frac{n^2}{4} \]
+
+\[= \frac{2n(2n+1)}{12} - \frac{3n^2}{12} = \frac{2n(2n+1)-3n^2}{12} = \frac{n^2 + 2n}{12}=\frac{n(n+2)}{12}\]
 
 ```{r, echo=FALSE, eval=FALSE}
+# \[\text{variance } = \frac{1}{n+1} \times \frac{n(n+1)(2n+1)}{6} = \frac{n(2n+1)}{6}\]
+
 # Empirical test, not shown or executed
 n <- 4
 pX <- function(n) {1/(n+1)}
@@ -221,6 +287,8 @@ Assuming n=b-a and therefore p(x)=1/(n+1) would still apply as in \(R_X=(2,3,4,5
 \[\text{mean }\ = \frac{1}{n+1} \times \frac{n(2a+n-1)}{2} = \frac{n(2a+n-1)}{2(n+1)}\]
 
 Variance, hmm....
+
+
 
 ```{r, echo=FALSE, eval=FALSE}
 s <- 3
@@ -286,5 +354,11 @@ p36 <- cdf514(6) - cdf514(3)
 The probabilty that this satellite dies between 3 and 6 years is `r p36`.
 
 
+# 5.39
+
+...
 
 
+# Useful Links
+
+Jointly continuous random variables: http://math.arizona.edu/~tgk/464_10/chap6_10_18.pdf
