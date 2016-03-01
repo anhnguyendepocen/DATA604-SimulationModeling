@@ -356,9 +356,57 @@ The probabilty that this satellite dies between 3 and 6 years is `r p36`.
 
 # 5.39
 
-...
+*(a) Distribution of the length of the linkage?*
 
+Normally distributed because the shafts are linked, presumably in a linear manner, to one another. A normal + normal + normal = normal distribution
+
+*(b) What is the probability that the linkage will be longer than 150.2 cm*
+
+```{r}
+m1 <- 60
+s1 <- 0.09
+
+m2 <- 40
+s2 <- 0.05
+
+m3 <- 50
+s3 <- 0.11
+
+link.m <- m1 + m2 + m3
+link.v <- s1^2 + s2^2 + s3^2
+link.sd <- sqrt(link.v)
+```
+
+The mean of the linkage will be `r link.m` and the standard deviation will be `r link.sd`.
+
+```{r}
+z <- (150.2 - 150) / (link.sd)
+z
+
+p <- pnorm(150.2, mean=link.m, sd=link.sd, lower.tail=FALSE)
+p
+
+pz <- pnorm(z, lower.tail=FALSE)
+pz
+```
+
+The probabilty that the linkage will be longer than 150.2 cm is `r p`.
+
+*(c) What proportion of assemblies will be with the tolerance limits of 149.83 to 150.21?*
+
+```{r}
+
+pl <- pnorm(149.83, mean=link.m, sd=link.sd)
+pu <- pnorm(150.21, mean=link.m, sd=link.sd)
+
+propInLimits <- pu - pl
+propInLimits
+```
+
+`r round(propInLimits * 100, 4)`% of assemblies will be within the tolerance limits.
 
 # Useful Links
 
 Jointly continuous random variables: http://math.arizona.edu/~tgk/464_10/chap6_10_18.pdf
+
+Linear combinations of normal random variables: http://www.statlect.com/probability-distributions/normal-distribution-linear-combinations
