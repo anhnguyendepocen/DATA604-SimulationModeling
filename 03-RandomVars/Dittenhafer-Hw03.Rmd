@@ -1,0 +1,92 @@
+---
+title: "Homework 3"
+subtitle: "DATA604 Simulation and Modeling"
+author: "Daniel Dittenhafer"
+date: "March 6, 2016"
+output: pdf_document
+classoption: portrait
+geometry: margin=0.5in
+---
+```{r, echo=FALSE}
+library(knitr)
+library(ggplot2)
+library(gridExtra)
+library(plot3D)
+set.seed(20275)
+# My ggplot theme
+myTheme <- theme(axis.ticks=element_blank(),
+                 axis.title=element_text(size="10"),
+                  panel.border = element_rect(color="gray", fill=NA), 
+                  panel.background=element_rect(fill="#FBFBFB"), 
+                  panel.grid.major.y=element_line(color="white", size=0.5), 
+                  panel.grid.major.x=element_line(color="white", size=0.5),
+                  plot.title=element_text(size="10"))
+```
+## 1
+
+*Starting with \(X_0=1\), write down the entire cycle for \(X_i=11X_{i-1}\text{ mod}(16)\)*
+
+```{r}
+fn1 <- function(x0)
+{
+  df <- data.frame(X=c(), R=c())  
+  x <- x0
+  continue <- TRUE
+  
+  while(continue)
+  {
+    xi <- (11 * x) %% 16
+    df <- rbind(df, data.frame(X=x, R=xi))
+    x <- xi
+    
+    if(xi == x0)
+    {
+      break
+    }
+  }
+  
+  return(df)
+}
+
+res <- fn1(1)
+```
+
+```{r, echo=FALSE}
+kable(res)
+```
+
+
+## 2
+
+*Using the LCG provided below: \(X_i=(X_{i-1} + 12) mod(13)\), plot the pairs \((U_1.U_2), (U_2, U_3),...\) and observe the lattice structure obtained. Discuss what you observe.
+
+```{r}
+fn2 <- function(x0, max=100)
+{
+  df <- data.frame(U1=c(), U2=c())  
+  x <- x0
+  continue <- TRUE
+  
+  for(i in 1:max)
+  {
+    xi <- (x + 12) %% 13
+    df <- rbind(df, data.frame(U1=x, U2=xi))
+    x <- xi
+  }
+  
+  return(df)  
+}
+# Call the function starting at x0=1
+res <- fn2(1)
+```
+
+```{r, echo=FALSE, fig.height=3, fig.width=3}
+g21 <- ggplot(res) + geom_point(aes(x=U1, y=U2), alpha=0.25) + myTheme
+g21
+```
+
+The chart above suggests there are only 13 points, but actually the LCG cycle period is 13 and numbers are repeating.
+
+```{r, echo=FALSE}
+kable(head(res, 14))
+```
