@@ -215,6 +215,97 @@ Based on the p-value < 0.05, we reject the null hypothesis and conclude there is
 
 ### Inverse-Transforms
 
+First find the definite integral of the probability density function:
+
+\[F(x)=\int\frac{3x^2}{2} dx = \frac{x^3}{2}\]
+
+Next set \(F(x)=R\) and solve for x in terms of R:
+
+\[\frac{x^3}{2} = R\]
+
+\[x^3 = 2R\]
+
+\[x = \sqrt[3]{2R}\]
+
+```{r}
+# Define a function of the F^-1(X)
+invTfn4 <- function(r)
+{
+  vals <- (2 * r)^(1/3)
+  return (vals)
+}
+
+# Generate the uniform psuedo-random vars
+rVals <- runif(n, -1, 1)
+# Convert to the desired distribution using the inverse transform method.
+invTVals <- invTfn4(rVals)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g41 <- ggplot(data.frame(invT=invTVals)) + geom_histogram(aes(x=invT)) + 
+  myTheme +
+  xlim(-1, 1) +
+  labs(title="Empircial Distribution from Inverse Transform Method")
+
+g41
+```
+
+### Acceptance-Rejection Method
+
+```{r}
+# Helper function for the Accept/Reject approach
+myRARmethod <- function(fun, min, max)
+{
+  M <- 2
+  accepted <- FALSE
+  while(!accepted)
+  {
+    # Get a random value from uniform distrubtion (g(x) for us)
+    r <- runif(1, min, max)
+
+    # Sample x from g(x) and u from U(0,1) (the uniform distribution over the unit interval)
+    u <- runif(1, 0, 1)
+    gx <- dunif(r, min, max)
+
+    # Check whether or not u<f(x)/Mg(x). 
+    if(u < fun(r) / (M * gx))
+    {
+      accepted = TRUE
+    }
+  }
+
+  return(r)
+}
+
+# Define a function for the PDF
+Arfn4 <- function(x)
+{
+  if(-1 <=x && x <= 1)
+  {
+    val <- (3 * x^2) / 2
+  }
+  else
+  {
+    val = 0
+  }
+  return (val)
+}
+
+# Loop to generate the values
+rarVals <- rep(NA, n)
+for(i in 1:n)
+{
+  rarVals[i] <- myRARmethod(Arfn4, -1, 1)  
+}
+
+```
+
+```{r, echo=FALSE, fig.height=3}
+
+g42 <- ggplot(data.frame(ar=rarVals)) + geom_histogram(aes(x=ar)) + myTheme +
+  labs(title="Accept-Reject Methods")
+g42
+```
 
 
 ## References
