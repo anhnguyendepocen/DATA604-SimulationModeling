@@ -9,9 +9,11 @@ geometry: margin=0.5in
 ---
 ```{r, echo=FALSE}
 library(knitr)
+library(gplots)
 library(ggplot2)
 library(gridExtra)
 library(plot3D)
+library(tseries)
 set.seed(20275)
 # My ggplot theme
 myTheme <- theme(axis.ticks=element_blank(),
@@ -22,6 +24,25 @@ myTheme <- theme(axis.ticks=element_blank(),
                   panel.grid.major.x=element_line(color="white", size=0.5),
                   plot.title=element_text(size="10"))
 ```
+
+```{r}
+library(knitcitations)
+library(RefManageR)
+
+cleanbib()
+
+cite_options(style="markdown")
+
+bibPkgTseries <- bibentry(bibtype="Misc",
+                 author=personList(person(family="Trapletti", given="Adrian"), 
+                                   person(family="Hornik", given="Kurt")),
+                 journal="Annual Review of Sociology",
+                 title="tseries: Time Series Analysis and Computational Finance",
+                 year=2015,
+                 note="R package version 0.10-34",
+                 url="http://CRAN.R-project.org/package=tseries")
+```
+
 ## 1
 
 *Starting with \(X_0=1\), write down the entire cycle for \(X_i=11X_{i-1}\text{ mod}(16)\)*
@@ -65,7 +86,6 @@ fn2 <- function(x0, max=100)
 {
   df <- data.frame(U1=c(), U2=c())  
   x <- x0
-  continue <- TRUE
   
   for(i in 1:max)
   {
@@ -80,6 +100,7 @@ fn2 <- function(x0, max=100)
 res <- fn2(1)
 ```
 
+
 ```{r, echo=FALSE, fig.height=3, fig.width=3}
 g21 <- ggplot(res) + geom_point(aes(x=U1, y=U2), alpha=0.25) + myTheme
 g21
@@ -90,3 +111,117 @@ The chart above suggests there are only 13 points, but actually the LCG cycle pe
 ```{r, echo=FALSE}
 kable(head(res, 14))
 ```
+
+## 3
+
+*Implement the pseudo-random number generator:*
+
+\[X_i = 16807X_{i-1} \text{ mod}(2^{31} - 1)\]
+
+*Using the seed 1234567, run the generator for 100,000 observations. Perform a chi-square goodness-of-fit test on the resulting PRN's. Use 20 equal-probability intervals and level \(\alpha = 0.05\). Now perform a runs up-and-down test with \(\alpha = 0.05\) on the observvations to see if they are independent.*
+
+```{r}
+fnLCG3 <- function(seed = 1, n = 1)
+{
+  rands <- rep(NA, n) 
+  x <- seed
+  modVal <- (2^31 - 1)
+  
+  for(i in 1:n)
+  {
+    xi <- (16807 * x) %% (modVal)
+    rands[i] <- xi
+    x <- xi
+  }
+  
+  return(rands)  
+}
+
+n=100000
+rn <- fnLCG3(1234567, n)
+```
+
+```{r, echo=FALSE}
+kable(head(rn))
+```
+
+```{r, echo=FALSE, fig.height=3, message=FALSE}
+#g3 <- ggplot(data.frame(random=rn)) + geom_histogram(aes(x=random), bins=20) + myTheme
+#g3
+```
+
+### Chi-Square Test
+
+```{r}
+intervals <- 20
+maxRn <- max(rn)
+minRn <- min(rn)
+intWidth <- (maxRn - minRn) / intervals
+lwr <- minRn
+dfCounts <- data.frame(intID=c(), count=c())
+# Bin the data ourselves, I'd guess there 
+# is an easier way, but this will do.
+for(i in 1:intervals)
+{
+  upr <- lwr + intWidth
+  inRange <- rn[lwr <= rn & rn < upr]
+  dfCounts <- rbind(dfCounts, data.frame(intID=i, count=length(inRange)))
+  # setup for next interval range
+  lwr <- upr
+}
+# Do our own Chi-Squared test
+Expected <- (100000 / intervals)
+chi2 <- sum((dfCounts$count - Expected)^2 / Expected)
+chi2
+# Use built-in function to compare
+chiTest <- chisq.test(dfCounts$count)
+chiTest
+```
+
+The p-value = `r chiTest$p.value` is not less than \(\alpha = 0.05\), therefore we doesn't reject the null hypothesis that the distrubtion is uniform. 
+
+```{r, echo=FALSE}
+kable(dfCounts)
+```
+
+### Runs Up-and-Down Test
+
+Using the `tseries` package, we execute the Runs test `r citep(bibPkgTseries)`. First we have to construct the +/- vector. Here we simply convert to boolean.
+
+```{r}
+s <- rep(NA, n - 1)
+for(i in 1:n - 1)
+{
+  s[i] <- rn[i] < rn[i + 1]
+}
+
+runsTest <- runs.test(as.factor(s))
+runsTest
+```
+
+Based on the p-value < 0.05, we reject the null hypothesis and conclude there is not evidence to support independence in the psuedo-random numbers.
+
+
+## 4. 
+
+*Give inverse-transforms, composition, and acceptance-rejection algorithms for generating from the following density:*
+
+\[f(x)=
+  \begin{cases} 
+    \frac{3x^2}{2} & -1 \leq x \leq 1 \\
+    0              & otherwise  \\
+  \end{cases}
+\]
+
+### Inverse-Transforms
+
+
+
+## References
+
+
+```{r, results='asis', echo=FALSE}
+BibOptions(style="html", bib.style="authortitle")
+bibliography()
+```
+  
