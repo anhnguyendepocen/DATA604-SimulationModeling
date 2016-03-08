@@ -7,7 +7,7 @@ output: pdf_document
 classoption: portrait
 geometry: margin=0.5in
 ---
-```{r, echo=FALSE}
+```{r, echo=FALSE, message=FALSE}
 library(knitr)
 library(gplots)
 library(ggplot2)
@@ -25,7 +25,7 @@ myTheme <- theme(axis.ticks=element_blank(),
                   plot.title=element_text(size="10"))
 ```
 
-```{r}
+```{r, echo=FALSE, message=FALSE}
 library(knitcitations)
 library(RefManageR)
 
@@ -79,7 +79,7 @@ kable(res)
 
 ## 2
 
-*Using the LCG provided below: \(X_i=(X_{i-1} + 12) mod(13)\), plot the pairs \((U_1.U_2), (U_2, U_3),...\) and observe the lattice structure obtained. Discuss what you observe.
+*Using the LCG provided below: \(X_i=(X_{i-1} + 12) mod(13)\), plot the pairs \((U_1.U_2), (U_2, U_3),...\) and observe the lattice structure obtained. Discuss what you observe.*
 
 ```{r}
 fn2 <- function(x0, max=100)
@@ -97,7 +97,7 @@ fn2 <- function(x0, max=100)
   return(df)  
 }
 # Call the function starting at x0=1
-res <- fn2(1)
+res <- fn2(25)
 ```
 
 
@@ -141,6 +141,8 @@ n=100000
 rn <- fnLCG3(1234567, n)
 ```
 
+The first 6 generated numbers are shown below:
+
 ```{r, echo=FALSE}
 kable(head(rn))
 ```
@@ -178,7 +180,7 @@ chiTest <- chisq.test(dfCounts$count)
 chiTest
 ```
 
-The p-value = `r chiTest$p.value` is not less than \(\alpha = 0.05\), therefore we doesn't reject the null hypothesis that the distrubtion is uniform. 
+The p-value = `r chiTest$p.value` is not less than \(\alpha = 0.05\), therefore we don't reject the null hypothesis that the distrubtion is uniform. 
 
 ```{r, echo=FALSE}
 kable(dfCounts)
@@ -215,7 +217,7 @@ Based on the p-value < 0.05, we reject the null hypothesis and conclude there is
 
 ### Inverse-Transforms
 
-First find the definite integral of the probability density function:
+First find the indefinite integral of the probability density function:
 
 \[F(x)=\int\frac{3x^2}{2} dx = \frac{x^3}{2}\]
 
@@ -225,7 +227,7 @@ Next set \(F(x)=R\) and solve for x in terms of R:
 
 \[x^3 = 2R\]
 
-\[x = \sqrt[3]{2R}\]
+\[F^-1(x) = \sqrt[3]{2R}\]
 
 ```{r}
 # Define a function of the F^-1(X)
@@ -241,7 +243,7 @@ rVals <- runif(n, -1, 1)
 invTVals <- invTfn4(rVals)
 ```
 
-```{r, echo=FALSE, fig.height=3}
+```{r, echo=FALSE, fig.height=3, message=FALSE}
 g41 <- ggplot(data.frame(invT=invTVals)) + geom_histogram(aes(x=invT)) + 
   myTheme +
   xlim(-1, 1) +
@@ -307,6 +309,203 @@ g42 <- ggplot(data.frame(ar=rarVals)) + geom_histogram(aes(x=ar)) + myTheme +
 g42
 ```
 
+### Composition 
+
+Hmm....
+
+
+## 5
+
+*Implement, test and compare different methods to generate from a N(0,1) distribution.*
+
+\[f(x)=\frac{1}{\sqrt{2\pi}} e^{\frac{-x^2}{2}} \]
+
+
+### Inverse Transform Method
+
+\[F(X)=\int \frac{1}{\sqrt{2\pi}} e^{\frac{-x^2}{2}}  dx\]
+
+It turns out the `qnorm` function is the inverse normal CDF function, so we'll use it.
+
+```{r, message=FALSE}
+normrandit <- function()
+{
+  u <- runif(1)
+  return (qnorm(u))
+}
+
+itstats <- function(n)
+{
+  vals <- rep(NA, n)
+  for(i in 1:n)
+  {
+    vals[i] <- normrandit()
+  }
+  
+  return(list(values=vals, mean=mean(vals), sd=sd(vals)))
+}
+
+res <- itstats(10000)
+res$mean
+res$sd
+```
+
+
+```{r, echo=FALSE, fig.height=3}
+g51 <- ggplot(data.frame(r=res[[1]])) + geom_histogram(aes(x=r)) + 
+  myTheme +
+  labs(title="Inverse Transform Method")
+g51
+```
+
+### Box-Muller Method
+
+```{r}
+normrandbm <- function()
+{
+  u2 <- runif(2)
+  
+  v1 <- (-2 * log(u2[1]))^(1/2) * cos(2 * pi * u2[2])
+  v2 <- (-2 * log(u2[1]))^(1/2) * sin(2 * pi * u2[2])
+  
+  return (c(v1, v2))
+}
+
+bmstats <- function(n)
+{
+  vals <- rep(NA, n / 2)
+  for(i in seq(1, n, by=2))
+  {
+    rs <- normrandbm()
+    vals[i] <- rs[1]
+    vals[i + 1] <- rs[2]
+  }
+  
+  return(list(values=vals, mean=mean(vals), sd=sd(vals)))
+}
+
+resBm <- bmstats(10000)
+length(resBm[[1]])
+# Mean
+resBm$mean
+# SD
+resBm$sd
+```
+
+
+```{r, echo=FALSE, fig.height=3, message=FALSE}
+g52 <- ggplot(data.frame(r=resBm[[1]])) + geom_histogram(aes(x=r)) + 
+  myTheme +
+  labs(title="Box-Muller Method")
+g52
+```
+
+### Accept Reject Method
+
+```{r}
+normrandar <- function()
+{
+  continue <- TRUE
+  while(continue)
+  {
+    u2 <- runif(2)
+    eu2 <-  - log(u2)
+    
+    if(eu2[2] >= ( (eu2[1] - 1)^2 / 2) )
+    {
+      break
+    }   
+  }
+  
+  if(runif(1) > 0.5)
+  {
+    eu2 * -1    
+  }   
+  
+  return(eu2)
+}
+
+arstats <- function(n)
+{
+  vals <- rep(NA, n / 2)
+  for(i in seq(1, n, by=2))
+  {
+    rs <- normrandar()
+    vals[i] <- rs[1]
+    vals[i + 1] <- rs[2]
+  }
+  
+  return(list(values=vals, mean=mean(vals), sd=sd(vals))) 
+}
+```
+
+### Compare
+
+```{r}
+dfCompare <- data.frame(method=c(), N=c(), mean=c(), sd=c(), time=c())
+
+perfTest <- function(fun)
+{
+  dfResult <- data.frame(method=c(), N=c(), mean=c(), sd=c(), time=c())
+  Ns <- c(100, 1000, 10000, 100000)
+  it <- 2
+  
+  for(n in Ns)
+  {
+    m <- rep(NA, it)
+    s <- rep(NA, it)
+    t <- rep(NA, it)
+    for(i in 1:it)
+    {
+      st <- system.time({ret <-  fun(n)})
+      #print(st)
+      m[i] <- ret$mean
+      s[i] <- ret$sd
+      t[i] <- st[[3]]
+    }
+    
+    dfResult <- rbind(dfResult, data.frame(method=deparse(substitute(fun)), 
+                                           N=n, 
+                                           mean=mean(m), 
+                                           sd=mean(s),
+                                           time=mean(t)))
+  }
+  
+  return (dfResult)
+}
+# Force less use of scientific notation
+# http://stackoverflow.com/questions/9397664/force-r-not-to-use-exponential-notation-e-g-e10
+options("scipen"=100, "digits"=5)
+
+dfCompare <- rbind(dfCompare, perfTest(itstats))
+dfCompare <- rbind(dfCompare, perfTest(bmstats))
+dfCompare <- rbind(dfCompare, perfTest(arstats))
+```
+
+```{r, echo=FALSE}
+kable(dfCompare)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g55 <- ggplot(dfCompare) + geom_line(aes(x=N, y=mean, colour=method)) + 
+  myTheme +
+  labs(title="Means by Approach")
+g55
+```
+
+```{r, echo=FALSE, fig.height=3}
+g56 <- ggplot(dfCompare) + geom_line(aes(x=N, y=sd, colour=method)) + 
+  myTheme +
+  labs(title="Stdev by Approach")
+g56
+```
+
+```{r, echo=FALSE, fig.height=3}
+g57 <- ggplot(dfCompare) + geom_line(aes(x=N, y=time, colour=method)) + 
+  myTheme +
+  labs(title="Time by Approach")
+g57
+```
 
 ## References
 
