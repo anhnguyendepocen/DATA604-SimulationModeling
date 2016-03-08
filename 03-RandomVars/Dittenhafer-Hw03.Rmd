@@ -417,22 +417,23 @@ normrandar <- function()
     }   
   }
   
-  if(runif(1) > 0.5)
+  sign <- runif(1)
+  if(sign > 0.5)
   {
-    eu2 * -1    
-  }   
+    eu2[1] <- eu2[1] * -1    
+  }
   
-  return(eu2)
+  return(eu2[1])
 }
 
 arstats <- function(n)
 {
-  vals <- rep(NA, n / 2)
-  for(i in seq(1, n, by=2))
+  vals <- rep(NA, n)
+  for(i in seq(1, n))
   {
     rs <- normrandar()
-    vals[i] <- rs[1]
-    vals[i + 1] <- rs[2]
+    vals[i] <- rs
+    #vals[i + 1] <- rs[2]
   }
   
   return(list(values=vals, mean=mean(vals), sd=sd(vals))) 
@@ -505,6 +506,17 @@ g57 <- ggplot(dfCompare) + geom_line(aes(x=N, y=time, colour=method)) +
   myTheme +
   labs(title="Time by Approach")
 g57
+```
+
+For me, the Inverse Transform approach takes the least time, but that might be due to the `qnorm` optimizations.
+
+### Million Sample Histograms
+
+```{r, eval=FALSE}
+m <- 1000000
+itMil <- itstats(m)
+bmMil <- bmstats(m)
+arMil <- arstats(m)
 ```
 
 ## References
