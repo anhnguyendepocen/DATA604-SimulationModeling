@@ -373,7 +373,7 @@ normrandbm <- function()
 
 bmstats <- function(n)
 {
-  vals <- rep(NA, n / 2)
+  vals <- rep(NA, n)
   for(i in seq(1, n, by=2))
   {
     rs <- normrandbm()
@@ -508,15 +508,102 @@ g57 <- ggplot(dfCompare) + geom_line(aes(x=N, y=time, colour=method)) +
 g57
 ```
 
-For me, the Inverse Transform approach takes the least time, but that might be due to the `qnorm` optimizations.
+For me, the Box-Muller approach takes the least time with Inverse Transform close behind. Also, I found that
+preallocating the vector in the stats method had a significant effect on performance. If the vector is not fully
+allocated, the time for the 100K samples jumps to 30+ seconds.
 
 ### Million Sample Histograms
 
+```{r}
+filename <- "MillionSamples.RData"
+if(!file.exists(filename))
+{
+  m <- 1000000
+  itMil <- itstats(m)
+  bmMil <- bmstats(m)
+  arMil <- arstats(m)
+  dfAll <- cbind(method=rep("itstats", m), itMil)
+  dfAll <- rbind(dfAll, cbind(method=rep("bmstats", m), bmMil))
+  dfAll <- rbind(dfAll, cbind(method=rep("arstats", m), arMil))
+  save(dfAll, file=filename)
+} else
+{
+  load(filename)
+}
+
+g58 <- ggplot(dfAll) + geom_histogram(aes(x=r, colour=method)) + myTheme + facet_wrap(~ method)
+g58
+```
+
+## 6
+
+***Using Monte Carlo simulation, write an algorithm to calculate an approximation to \(\pi\) by considering the number of random points selected inside the quarter circle: ***
+
+\[Q:x^2+y^2=1, x \geq 0, y \geq 0 \]
+
+***where the quarter circle is taken to be inside the square***
+
+\[S: 0 \leq x \leq 1 \text{ and } 0 \leq y \leq 1\]
+
+***Use the equation \(\pi/4= \text{area }  Q/\text{area } S\)***
+
 ```{r, eval=FALSE}
-m <- 1000000
-itMil <- itstats(m)
-bmMil <- bmstats(m)
-arMil <- arstats(m)
+
+# Define a function of the circle
+quarterCircleY <- function(x)
+{
+  val <- sqrt((-1 * x^2) + 1)
+  return (val)
+}
+
+insidecircle <- function(x, y)
+{
+  yq <- quarterCircleY(x)
+  inside <- y <= yq
+  
+  return (inside)
+}
+
+# Define function for the Monte Carlo iterations
+estimatepi <- function(n)
+{
+  dfPoints <- data.frame()
+  x <- runif(n)
+  y <- runif(n)
+  
+  inside <- insidecircle(x, y)
+
+  dfPoints <- rbind(dfPoints, cbind(x, y, yq, inside))
+  
+  return (dfPoints)
+}
+
+mc <- 100
+n_points <- 5000
+dfMcPi <- data.frame()
+for(i in 1:mc)
+{
+  dfMcPoints <- monteCarloPiEst(n_points)
+  # Compute quarter circle area under the curve
+  qca <- sum(dfMcPoints$inside) / nrow(dfMcPoints)
+  qca
+  # estimate Pi
+  pi_est <- qca * 4
+  pi_est
+  # Add to our running list.
+  dfMcPi <- rbind(dfMcPi, cbind(i, pi_est))
+}
+# Show me the results of the Monte Carlo simulations
+head(dfMcPi)
+# What is the median pi estimate?
+median(pi_est)
+# What is the mean pi estimate?
+mean(pi_est)
+```
+
+```{r, echo=FALSE}
+g1 <- ggplot(data=dfMcPoints) + geom_point(aes(x=x, y=y, color=inside))
+g1
 ```
 
 ## References
