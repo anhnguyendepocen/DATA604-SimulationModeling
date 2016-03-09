@@ -522,32 +522,40 @@ if(!file.exists(filename))
   itMil <- itstats(m)
   bmMil <- bmstats(m)
   arMil <- arstats(m)
-  dfAll <- cbind(method=rep("itstats", m), itMil)
-  dfAll <- rbind(dfAll, cbind(method=rep("bmstats", m), bmMil))
-  dfAll <- rbind(dfAll, cbind(method=rep("arstats", m), arMil))
-  save(dfAll, file=filename)
+  
+  dfItStats <- data.frame(method=rep("itstats", m), r=itMil$values)
+  dfBmStats <- data.frame(method=rep("bmstats", m), r=bmMil$values)
+  dfArStats <- data.frame(method=rep("arstats", m), r=arMil$values)
+  
+  #dfAll$method <- as.factor(dfAll$method)
+  
+  #save(dfAll, file=filename)
 } else
 {
   load(filename)
 }
+```
 
-g58 <- ggplot(dfAll) + geom_histogram(aes(x=r, colour=method)) + myTheme + facet_wrap(~ method)
+```{r, echo=FALSE, message=FALSE, fig.height=3}
+g58 <- ggplot(dfItStats) + geom_histogram(aes(x=r)) + myTheme  + labs(title="Inverse Transform Histogram")
 g58
+```
+
+```{r, echo=FALSE, message=FALSE, fig.height=3}
+g59 <- ggplot(dfBmStats) + geom_histogram(aes(x=r)) + myTheme + labs(title="Box Muller Histogram")
+g59
+```
+
+```{r, echo=FALSE, message=FALSE, fig.height=3}
+g591 <- ggplot(dfArStats) + geom_histogram(aes(x=r)) + myTheme + labs(title="Accept/Reject Histogram")
+g591
 ```
 
 ## 6
 
-***Using Monte Carlo simulation, write an algorithm to calculate an approximation to \(\pi\) by considering the number of random points selected inside the quarter circle: ***
+***Use Monte Carlo integration to estimate the value of \(\pi\).***
 
-\[Q:x^2+y^2=1, x \geq 0, y \geq 0 \]
-
-***where the quarter circle is taken to be inside the square***
-
-\[S: 0 \leq x \leq 1 \text{ and } 0 \leq y \leq 1\]
-
-***Use the equation \(\pi/4= \text{area }  Q/\text{area } S\)***
-
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 
 # Define a function of the circle
 quarterCircleY <- function(x)
@@ -565,47 +573,88 @@ insidecircle <- function(x, y)
 }
 
 # Define function for the Monte Carlo iterations
-estimatepi <- function(n)
+estimatepi <- function(n, mc=1)
 {
-  dfPoints <- data.frame()
-  x <- runif(n)
-  y <- runif(n)
+  #mc <- 100
+  dfMcPi <- data.frame()
+  for(i in 1:mc)
+  {
+    #dfMcPoints <- monteCarloPiEst(n_points)
+    dfPoints <- data.frame()
+    x <- runif(n)
+    y <- runif(n)
+    
+    inside <- insidecircle(x, y)
   
-  inside <- insidecircle(x, y)
-
-  dfPoints <- rbind(dfPoints, cbind(x, y, yq, inside))
+    dfPoints <- data.frame(x, y, inside)
+    
+    #return (dfPoints)
+    
+    # Compute quarter circle area under the curve
+    qca <- sum(dfPoints$inside) / nrow(dfPoints)
+    qca
+    # estimate Pi
+    pi_est <- qca * 4
+    
+    # Add to our running list.
+    dfMcPi <- rbind(dfMcPi, cbind(i, pi_est))
+  }
+  mnPi <- mean(dfMcPi$pi_est)
+  se <- sd(dfMcPi$pi_est) / sqrt(n)
+  ci95 <- c(mnPi - (se * 1.96), mnPi + (se * 1.96))
   
-  return (dfPoints)
+  return(list(pi_est=mnPi, se=se, ci95=ci95, mc_results=dfMcPi, points=dfPoints))
 }
 
-mc <- 100
-n_points <- 5000
-dfMcPi <- data.frame()
-for(i in 1:mc)
+
+dfRes <- data.frame(pi_est=c(), se=c(), lwr=c(), upr=c(), n=c())
+for(ni in seq(1000, 10000, by=500))
 {
-  dfMcPoints <- monteCarloPiEst(n_points)
-  # Compute quarter circle area under the curve
-  qca <- sum(dfMcPoints$inside) / nrow(dfMcPoints)
-  qca
-  # estimate Pi
-  pi_est <- qca * 4
-  pi_est
-  # Add to our running list.
-  dfMcPi <- rbind(dfMcPi, cbind(i, pi_est))
+  resPi <- estimatepi(ni, mc=100)
+  dfRes <- rbind(dfRes, data.frame(pi_est=resPi$pi_est, 
+                                   se=resPi$se, 
+                                   lwr=resPi$ci95[1], 
+                                   upr=resPi$ci95[2], n=ni))
 }
-# Show me the results of the Monte Carlo simulations
-head(dfMcPi)
-# What is the median pi estimate?
-median(pi_est)
-# What is the mean pi estimate?
-mean(pi_est)
+
 ```
 
-```{r, echo=FALSE}
-g1 <- ggplot(data=dfMcPoints) + geom_point(aes(x=x, y=y, color=inside))
+```{r}
+kable(dfRes)
+```
+
+Using n=8500:
+
+```{r}
+n=8500
+dfRes2 <- data.frame(pi_est=c(), se=c(), lwr=c(), upr=c(), n=c())
+for(k in 1:500)
+{
+  resPi <-estimatepi(n, mc=100)
+  dfRes2 <- rbind(dfRes2, data.frame(pi_est=resPi$pi_est, se=resPi$se, lwr=resPi$ci95[1], upr=resPi$ci95[2], n=n))
+}
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(data=dfRes2) + geom_histogram(aes(x=pi_est)) + myTheme
 g1
 ```
 
+```{r}
+theRow <- dfRes[dfRes$n == n,]
+
+sdEstPi <- sd(dfRes2$pi_est)
+sdEstPi
+```
+
+Standard deviation does not quite match the SE from earlier (`r theRow$se`).  
+
+```{r}
+subCI <- dfRes2$pi_est[theRow$lwr <= dfRes2$pi_est & dfRes2$pi_est <= theRow$upr]
+
+prop95 <- length(subCI) / 500
+prop95
+```
 ## References
 
 
