@@ -1,0 +1,87 @@
+---
+title: "Homework 4"
+subtitle: "DATA604 Simulation and Modeling"
+author: "Daniel Dittenhafer"
+date: "March 22, 2016"
+output: pdf_document
+classoption: portrait
+geometry: margin=0.5in
+---
+```{r, echo=FALSE, message=FALSE}
+library(knitr)
+#library(gplots)
+library(ggplot2)
+#library(gridExtra)
+#library(plot3D)
+#library(tseries)
+set.seed(20275)
+# My ggplot theme
+myTheme <- theme(axis.ticks=element_blank(),
+                 axis.title=element_text(size="10"),
+                  panel.border = element_rect(color="gray", fill=NA), 
+                  panel.background=element_rect(fill="#FBFBFB"), 
+                  panel.grid.major.y=element_line(color="white", size=0.5), 
+                  panel.grid.major.x=element_line(color="white", size=0.5),
+                  plot.title=element_text(size="10"))
+```
+
+```{r, echo=FALSE, message=FALSE}
+library(knitcitations)
+library(RefManageR)
+
+cleanbib()
+
+cite_options(style="markdown")
+
+bibPkgTseries <- bibentry(bibtype="Misc",
+                 author=personList(person(family="Trapletti", given="Adrian"), 
+                                   person(family="Hornik", given="Kurt")),
+                 journal="Annual Review of Sociology",
+                 title="tseries: Time Series Analysis and Computational Finance",
+                 year=2015,
+                 note="R package version 0.10-34",
+                 url="http://CRAN.R-project.org/package=tseries")
+```
+
+## 1
+
+*In this problem, you will implement and investigate a series of variance reduction procedures for Monte Carlo method by estimating the expected value of a cost function c(x) which depends on a D-dimensional random variable x.*
+
+*The cost function is:*
+
+\[c(x)=\frac{1}{(2\pi)^{\frac{D}{2}}} e^{-1/2 x^T x}\]
+
+where
+
+\[x_i \sim U(-5,5) for i=1..D\]
+
+Goal: estimate E[c(x)] - the expected value of c(x) - using Monte Carlo methods and see how it compares to the real value, which you are able to find by hand. 
+
+```{r cost-function}
+# First define the cost function as an R function
+costFx <- function(x)
+{
+  b <- exp(-0.5 * t(x) * x)
+  D <- length(x)
+  res <- (1 / ((2 * pi)^(D/2))) * b
+  return (res)
+}
+```
+
+### a) Crude Monte Carlo
+
+```{r crude-monte-carlo}
+crudeMC <- function(n, min, max, d = 1)
+{
+  # Need a loop in here
+  x <- runif(d, min, max)
+  gXbar <- (1/n) * costFx(x)
+  theta.hat <- (max-min) * gXbar
+  
+  return (theta.hat)
+}
+
+
+crudeMC(1000, -5, 5)
+
+```
