@@ -11,6 +11,7 @@ geometry: margin=0.5in
 library(knitr)
 #library(gplots)
 library(ggplot2)
+library(randtoolbox)
 #library(gridExtra)
 #library(plot3D)
 #library(tseries)
@@ -53,7 +54,7 @@ bibPkgTseries <- bibentry(bibtype="Misc",
 
 where
 
-\[x_i \sim U(-5,5) for i=1..D\]
+\[x_i \sim U(-5,5) \text{ for } i=1..D\]
 
 Goal: estimate E[c(x)] - the expected value of c(x) - using Monte Carlo methods and see how it compares to the real value, which you are able to find by hand. 
 
@@ -74,14 +75,109 @@ costFx <- function(x)
 crudeMC <- function(n, min, max, d = 1)
 {
   # Need a loop in here
-  x <- runif(d, min, max)
-  gXbar <- (1/n) * costFx(x)
-  theta.hat <- (max-min) * gXbar
+  theta.hat <- matrix(nrow=d, ncol=n)
+  for(i in 1:n)
+  {
+    x <- runif(d, min, max)
+    theta.hat[,i] <- costFx(x)
+    #gXbar <- (1/n) * costFx(x)
+    #print(((max-min) * gXbar))
+    #theta.hat[,i] <- t((max-min) * gXbar)
+  }
   
   return (theta.hat)
 }
 
+#crudeMC(10, -5, 5, 2)
 
-crudeMC(1000, -5, 5)
+crudeMc.Loop <- function(d, verbose=FALSE)
+{
+  crudeMc.result <- data.frame(mean=c(), stdev=c(), n=c())
+  for(n in seq(1000, 10000, by=1000))
+  {
+    res <- crudeMC(n=n, min=-5, max=5, d=d)
+    if(verbose)
+    {
+      print("Data")
+      print(res)
+      print("Mean")
+      print(mean(res))
+    }
+    
+    crudeMc.result <- rbind(crudeMc.result, data.frame(mean=mean(res), stdev=sd(res), n=n))
+  }
+  
+  crudeMc.result$EcActual <- (1/10)^d
+  crudeMc.result$CoefVari <- crudeMc.result$stdev / crudeMc.result$mean
+  
+  return (crudeMc.result)
+}
+```
+
+In the code below, we call the crude Monte Carlo loop function, show the top entries and visualize the result for D=1. The blue line represents the mean value, pink is the standard deviation, and the green line is the analytical value for \(E[c(x)] = (1/10)^D\).
+
+```{r}
+crudeMc.D1 <- crudeMc.Loop(d=1)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(crudeMc.D1) + 
+  geom_point(aes(x=n, y=mean), colour="lightblue") + 
+  geom_line(aes(x=n, y=mean), colour="lightblue") + 
+  geom_point(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=EcActual), colour="lightgreen") + 
+  labs(title="D=1 Monte Carlo Estimate by n", y="mean/stdev") +
+  myTheme
+g1
+```
+
+```{r, echo=FALSE}
+kable(crudeMc.D1)
+```
+
+
+In the code below, we call the crude Monte Carlo loop function, show the top entries and visualize the result for D=2.
+
+```{r}
+crudeMc.D2 <- crudeMc.Loop(d=2, verbose=FALSE)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(crudeMc.D2) + 
+  geom_point(aes(x=n, y=mean), colour="lightblue") + 
+  geom_line(aes(x=n, y=mean), colour="lightblue") + 
+  geom_point(aes(x=n, y=stdev), colour="pink") +   
+  geom_line(aes(x=n, y=stdev), colour="pink") +
+  geom_line(aes(x=n, y=EcActual), colour="lightgreen") + 
+  labs(title="D=2 Monte Carlo Estimate by n", y="mean/stdev") +
+  myTheme
+g1
+```
+
+```{r, echo=FALSE}
+kable(crudeMc.D2)
+```
+
+### Quasi-Random Numbers
+
+```{r sobol-monte-carlo}
+sobolMC <- function(n, min, max, d = 1)
+{
+  # Need a loop in here
+  theta.hat <- matrix(nrow=d, ncol=n)
+  for(i in 1:n)
+  {
+    x <- sobol(n=1, d=d)
+    theta.hat[,i] <- costFx(x)
+    #gXbar <- (1/n) * costFx(x)
+    #print(((max-min) * gXbar))
+    #theta.hat[,i] <- t((max-min) * gXbar)
+  }
+  
+  return (theta.hat)
+}
+
+sobolMC(10, 1)
 
 ```
