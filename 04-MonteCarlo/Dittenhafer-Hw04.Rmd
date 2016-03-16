@@ -161,23 +161,139 @@ kable(crudeMc.D2)
 
 ### Quasi-Random Numbers
 
+First, we compare the typical uniform random numbers from R's `runif` function to Sobol quasi-random numbers from `randtoolbox::sobol` function. 100 pairs of numbers are drawn from both generators and visualized below.
+
+#### Uniform Random Numbers
+
+The following code segment uses `runif` to generate \(m=100\) random numbers and plots them.
+
+```{r}
+m <- 100
+unifRn <- as.data.frame(matrix(runif(m * 2), ncol=2))
+colnames(unifRn) <- c("x", "y")
+head(unifRn)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g2 <- ggplot(data=as.data.frame(unifRn)) + 
+  geom_point(aes(x=x, y=y)) + 
+  labs(title="Uniform Psuedo-Random Numbers n=100 x 2 (runif)") +
+  myTheme
+g2
+```
+
+#### Sobol Random Numbers
+
+The following code segment uses `sobol` to generate \(m=100\) random numbers and plots them.
+
+
+```{r}
+sobolRn <- as.data.frame(sobol(m, d=2))
+colnames(sobolRn) <- c("x", "y")
+head(sobolRn)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g2 <- ggplot(data=as.data.frame(sobolRn)) + 
+  geom_point(aes(x=x, y=y)) + 
+  labs(title="Sobol Quasi-Random Numbers n=100 x 2 (randtoolbox::sobol)") +
+  myTheme 
+g2
+```
+
+At \(m=100\), the differences are less obvious, but there is some discernable pattern to the Sobol numbers which is more apparent at great \(m\). As such, the prefix "quasi" seems appropriate. The definition of "quasi" is "seemingly, apparently but not really". These might appear to be random numbers at first glace, but there is quite a pattern, the lattice, as more and more are generated.
+
+#### Sobol Monte Carlo
+
+First, `sobol` based helper functions are defined using the same structure as the prior `runif` based functions. A couple of changes were needed:
+
+* `sobol` returns a matrix. This is converted to a vector for use in the cost function.
+* `sobol` has an init parameter, but we don't want to re-initialize every call, so this is bubbled up to the loop function to allow it to drive the re-init. 
+
 ```{r sobol-monte-carlo}
-sobolMC <- function(n, min, max, d = 1)
+sobolMC <- function(n, d = 1, init=TRUE)
 {
   # Need a loop in here
   theta.hat <- matrix(nrow=d, ncol=n)
   for(i in 1:n)
   {
-    x <- sobol(n=1, d=d)
+    x <- as.vector(sobol(n=1, d=d, init=init))
     theta.hat[,i] <- costFx(x)
-    #gXbar <- (1/n) * costFx(x)
-    #print(((max-min) * gXbar))
-    #theta.hat[,i] <- t((max-min) * gXbar)
+    init <- FALSE # turn off the init for i > 1 iterations
   }
   
   return (theta.hat)
 }
 
-sobolMC(10, 1)
+sobolMC(n=10, d=2)
 
+sobolMc.Loop <- function(d, verbose=FALSE)
+{
+  initSobol <- TRUE
+  sobolMC.result <- data.frame(mean=c(), stdev=c(), n=c())
+  for(n in seq(1000, 10000, by=1000))
+  {
+    res <- sobolMC(n=n, d=d, initSobol)
+    if(verbose)
+    {
+      print("Data")
+      print(res)
+      print("Mean")
+      print(mean(res))
+    }
+    
+    sobolMC.result <- rbind(sobolMC.result, data.frame(mean=mean(res), stdev=sd(res), n=n))
+    initSobol <- FALSE # don't re-initialize sobol every time.
+  }
+  
+  sobolMC.result$EcActual <- (1/10)^d
+  sobolMC.result$CoefVari <- sobolMC.result$stdev / sobolMC.result$mean
+  
+  return (sobolMC.result)
+}
+
+```
+
+In the code below, we call the Sobol Monte Carlo loop function, show the top entries and visualize the result for D=1. Again, the blue line represents the mean value, pink is the standard deviation, and the green line is the analytical value for \(E[c(x)] = (1/10)^D\).
+
+```{r}
+sobolMc.D1 <- sobolMc.Loop(d=1)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(sobolMc.D1) + 
+  geom_point(aes(x=n, y=mean), colour="lightblue") + 
+  geom_line(aes(x=n, y=mean), colour="lightblue") + 
+  geom_point(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=EcActual), colour="lightgreen") + 
+  labs(title="D=1 Sobol Monte Carlo Estimate by n", y="mean/stdev") +
+  myTheme
+g1
+```
+
+```{r, echo=FALSE}
+kable(sobolMc.D1)
+```
+
+
+
+```{r}
+sobolMc.D2 <- sobolMc.Loop(d=2) #data.frame(mean=c(), stdev=c(), EcActual=c(), n=c()) #
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(sobolMc.D2) + 
+  geom_point(aes(x=n, y=mean), colour="lightblue") + 
+  geom_line(aes(x=n, y=mean), colour="lightblue") + 
+  geom_point(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=EcActual), colour="lightgreen") + 
+  labs(title="D=2 Sobol Monte Carlo Estimate by n", y="mean/stdev") +
+  myTheme
+g1
+```
+
+```{r, echo=FALSE}
+kable(sobolMc.D2)
 ```
