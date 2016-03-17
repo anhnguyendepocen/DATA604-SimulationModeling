@@ -88,23 +88,26 @@ crudeMC <- function(n, min, max, d = 1)
   return (theta.hat)
 }
 
-#crudeMC(10, -5, 5, 2)
+#ret <- crudeMC(10, -5, 5, 2)
+#ret
+#mean(ret)
 
 crudeMc.Loop <- function(d, verbose=FALSE)
 {
   crudeMc.result <- data.frame(mean=c(), stdev=c(), n=c())
-  for(n in seq(1000, 10000, by=1000))
+  for(n in seq(1000, 20000, by=1000))
   {
     res <- crudeMC(n=n, min=-5, max=5, d=d)
     if(verbose)
     {
-      print("Data")
-      print(res)
-      print("Mean")
-      print(mean(res))
+      #print("Data")
+      #print(res)
+      #print("Mean")
+      #print(mean(res))
+      print(dim(res))
     }
     
-    crudeMc.result <- rbind(crudeMc.result, data.frame(mean=mean(res), stdev=sd(res), n=n))
+    crudeMc.result <- rbind(crudeMc.result, data.frame(mean=mean(colSums(res)), stdev=sd(colSums(res)), n=n))
   }
   
   crudeMc.result$EcActual <- (1/10)^d
