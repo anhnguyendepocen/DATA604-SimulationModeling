@@ -62,7 +62,7 @@ Goal: estimate E[c(x)] - the expected value of c(x) - using Monte Carlo methods 
 # First define the cost function as an R function
 costFx <- function(x)
 {
-  b <- exp(-0.5 * t(x) * x)
+  b <- exp(-0.5 * t(x) %*% x)
   D <- length(x)
   res <- (1 / ((2 * pi)^(D/2))) * b
   return (res)
@@ -107,7 +107,7 @@ crudeMc.Loop <- function(d, verbose=FALSE)
       print(dim(res))
     }
     
-    crudeMc.result <- rbind(crudeMc.result, data.frame(mean=mean(colSums(res)), stdev=sd(colSums(res)), n=n))
+    crudeMc.result <- rbind(crudeMc.result, data.frame(mean=mean(res), stdev=sd(res), n=n))
   }
   
   crudeMc.result$EcActual <- (1/10)^d
@@ -214,21 +214,33 @@ First, `sobol` based helper functions are defined using the same structure as th
 * `sobol` has an init parameter, but we don't want to re-initialize every call, so this is bubbled up to the loop function to allow it to drive the re-init. 
 
 ```{r sobol-monte-carlo}
-sobolMC <- function(n, d = 1, init=TRUE)
+# Define a function to help us convert a 0-1 RV to a x-y RV 
+rndRange <- function(x, min, max)
+{
+  r <- max - min
+  p <- x * r
+  new <- min + p
+  return(new)
+}
+
+# Sobol Monte Carlo Inner function
+sobolMC <- function(n, min, max, d = 1, init=TRUE)
 {
   # Need a loop in here
-  theta.hat <- matrix(nrow=d, ncol=n)
+  theta.hat <- rep(NA, n)
   for(i in 1:n)
   {
     x <- as.vector(sobol(n=1, d=d, init=init))
-    theta.hat[,i] <- costFx(x)
+    x <- rndRange(x, min, max)
+    theta.hat[i] <- costFx(x)
     init <- FALSE # turn off the init for i > 1 iterations
   }
   
   return (theta.hat)
 }
 
-sobolMC(n=10, d=2)
+
+#sobolMC(n=10, -5, 5, d=2)
 
 sobolMc.Loop <- function(d, verbose=FALSE)
 {
@@ -236,7 +248,7 @@ sobolMc.Loop <- function(d, verbose=FALSE)
   sobolMC.result <- data.frame(mean=c(), stdev=c(), n=c())
   for(n in seq(1000, 10000, by=1000))
   {
-    res <- sobolMC(n=n, d=d, initSobol)
+    res <- sobolMC(n=n, -5, 5, d=d, initSobol)
     if(verbose)
     {
       print("Data")
