@@ -44,7 +44,7 @@ bibPkgTseries <- bibentry(bibtype="Misc",
                  url="http://CRAN.R-project.org/package=tseries")
 ```
 
-## 1
+# 1
 
 *In this problem, you will implement and investigate a series of variance reduction procedures for Monte Carlo method by estimating the expected value of a cost function c(x) which depends on a D-dimensional random variable x.*
 
@@ -69,20 +69,16 @@ costFx <- function(x)
 }
 ```
 
-### a) Crude Monte Carlo
+## a) Crude Monte Carlo
 
 ```{r crude-monte-carlo}
 crudeMC <- function(n, min, max, d = 1)
 {
-  # Need a loop in here
-  theta.hat <- matrix(nrow=d, ncol=n)
+  theta.hat <- rep(NA, n)
   for(i in 1:n)
   {
     x <- runif(d, min, max)
-    theta.hat[,i] <- costFx(x)
-    #gXbar <- (1/n) * costFx(x)
-    #print(((max-min) * gXbar))
-    #theta.hat[,i] <- t((max-min) * gXbar)
+    theta.hat[i] <- costFx(x)
   }
   
   return (theta.hat)
@@ -92,12 +88,12 @@ crudeMC <- function(n, min, max, d = 1)
 #ret
 #mean(ret)
 
-crudeMc.Loop <- function(d, verbose=FALSE)
+montecarlo.Loop <- function(d, fun, verbose=FALSE)
 {
   crudeMc.result <- data.frame(mean=c(), stdev=c(), n=c())
   for(n in seq(1000, 20000, by=1000))
   {
-    res <- crudeMC(n=n, min=-5, max=5, d=d)
+    res <- fun(n=n, min=-5, max=5, d=d)
     if(verbose)
     {
       #print("Data")
@@ -119,8 +115,8 @@ crudeMc.Loop <- function(d, verbose=FALSE)
 
 In the code below, we call the crude Monte Carlo loop function, show the top entries and visualize the result for D=1. The blue line represents the mean value, pink is the standard deviation, and the green line is the analytical value for \(E[c(x)] = (1/10)^D\).
 
-```{r}
-crudeMc.D1 <- crudeMc.Loop(d=1)
+```{r, cache=TRUE}
+crudeMc.D1 <- montecarlo.Loop(d=1, fun=crudeMC)
 ```
 
 ```{r, echo=FALSE, fig.height=3}
@@ -142,8 +138,8 @@ kable(crudeMc.D1)
 
 In the code below, we call the crude Monte Carlo loop function, show the top entries and visualize the result for D=2.
 
-```{r}
-crudeMc.D2 <- crudeMc.Loop(d=2, verbose=FALSE)
+```{r, cache=TRUE}
+crudeMc.D2 <- montecarlo.Loop(d=2, fun=crudeMC, verbose=FALSE)
 ```
 
 ```{r, echo=FALSE, fig.height=3}
@@ -162,11 +158,11 @@ g1
 kable(crudeMc.D2)
 ```
 
-### Quasi-Random Numbers
+## b) Quasi-Random Numbers
 
 First, we compare the typical uniform random numbers from R's `runif` function to Sobol quasi-random numbers from `randtoolbox::sobol` function. 100 pairs of numbers are drawn from both generators and visualized below.
 
-#### Uniform Random Numbers
+### Uniform Random Numbers
 
 The following code segment uses `runif` to generate \(m=100\) random numbers and plots them.
 
@@ -185,7 +181,7 @@ g2 <- ggplot(data=as.data.frame(unifRn)) +
 g2
 ```
 
-#### Sobol Random Numbers
+### Sobol Random Numbers
 
 The following code segment uses `sobol` to generate \(m=100\) random numbers and plots them.
 
@@ -206,7 +202,7 @@ g2
 
 At \(m=100\), the differences are less obvious, but there is some discernable pattern to the Sobol numbers which is more apparent at great \(m\). As such, the prefix "quasi" seems appropriate. The definition of "quasi" is "seemingly, apparently but not really". These might appear to be random numbers at first glace, but there is quite a pattern, the lattice, as more and more are generated.
 
-#### Sobol Monte Carlo
+### Sobol Monte Carlo
 
 First, `sobol` based helper functions are defined using the same structure as the prior `runif` based functions. A couple of changes were needed:
 
@@ -241,38 +237,12 @@ sobolMC <- function(n, min, max, d = 1, init=TRUE)
 
 
 #sobolMC(n=10, -5, 5, d=2)
-
-sobolMc.Loop <- function(d, verbose=FALSE)
-{
-  initSobol <- TRUE
-  sobolMC.result <- data.frame(mean=c(), stdev=c(), n=c())
-  for(n in seq(1000, 10000, by=1000))
-  {
-    res <- sobolMC(n=n, -5, 5, d=d, initSobol)
-    if(verbose)
-    {
-      print("Data")
-      print(res)
-      print("Mean")
-      print(mean(res))
-    }
-    
-    sobolMC.result <- rbind(sobolMC.result, data.frame(mean=mean(res), stdev=sd(res), n=n))
-    initSobol <- FALSE # don't re-initialize sobol every time.
-  }
-  
-  sobolMC.result$EcActual <- (1/10)^d
-  sobolMC.result$CoefVari <- sobolMC.result$stdev / sobolMC.result$mean
-  
-  return (sobolMC.result)
-}
-
 ```
 
 In the code below, we call the Sobol Monte Carlo loop function, show the top entries and visualize the result for D=1. Again, the blue line represents the mean value, pink is the standard deviation, and the green line is the analytical value for \(E[c(x)] = (1/10)^D\).
 
-```{r}
-sobolMc.D1 <- sobolMc.Loop(d=1)
+```{r, cache=TRUE}
+sobolMc.D1 <- montecarlo.Loop(d=1, fun=sobolMC)
 ```
 
 ```{r, echo=FALSE, fig.height=3}
@@ -292,9 +262,8 @@ kable(sobolMc.D1)
 ```
 
 
-
-```{r}
-sobolMc.D2 <- sobolMc.Loop(d=2) #data.frame(mean=c(), stdev=c(), EcActual=c(), n=c()) #
+```{r, cache=TRUE}
+sobolMc.D2 <- montecarlo.Loop(d=2, fun=sobolMC)
 ```
 
 ```{r, echo=FALSE, fig.height=3}
@@ -311,4 +280,202 @@ g1
 
 ```{r, echo=FALSE}
 kable(sobolMc.D2)
+```
+
+### Compare Pure Uniform and Sobol
+
+From what I see, the average of the sobol-based approach is closer to the expected value vs the more pure uniform approach. On the otherhand, the standard deviations are generally similar, though the sobol stdevs tend to drive to \(\approx 0.13494\) as whereas the uniform approach ranges 0.134 to 0.136 (a broader range). In other words, the sobol approach seems to result is a reduced variance of the variance.
+
+```{r}
+comparedMc.D1 <- data.frame(crudeMc.D1$mean, 
+                            sobolMc.D1$mean, 
+                            meanDiff=crudeMc.D1$mean - sobolMc.D1$mean,
+                            crudeMc.D1$stdev, 
+                            sobolMc.D1$stdev, 
+                            stdevDiff=crudeMc.D1$stdev - sobolMc.D1$stdev,
+                            n=crudeMc.D1$n)
+kable(comparedMc.D1)
+```
+
+```{r, echo=FALSE, fig.height=3}
+combinedStdev.D1 <- data.frame(type="crude", stdev=crudeMc.D1$stdev, n=crudeMc.D1$n)
+combinedStdev.D1 <- rbind(combinedStdev.D1, data.frame(type="sobol", stdev=sobolMc.D1$stdev, n=sobolMc.D1$n))
+
+g4 <- ggplot(combinedStdev.D1) + 
+  geom_line(aes(x=n, y=stdev, colour=type)) +
+  labs(title="D=1 Sobol & Uniform Stdev Side by Side by n", y="stdev") +
+  myTheme
+g4
+```
+
+```{r, echo=FALSE, fig.height=3}
+combinedStdev.D2 <- data.frame(type="crude", stdev=crudeMc.D2$stdev, n=crudeMc.D2$n)
+combinedStdev.D2 <- rbind(combinedStdev.D2, data.frame(type="sobol", stdev=sobolMc.D2$stdev, n=sobolMc.D2$n))
+
+g4 <- ggplot(combinedStdev.D2) + 
+  geom_line(aes(x=n, y=stdev, colour=type)) +
+  labs(title="D=2 Sobol & Uniform Stdev Side by Side by n", y="stdev") +
+  myTheme
+g4
+```
+
+## c) Antithetic Variates
+
+```{r antithetic-monte-carlo}
+antitheticMC <- function(n, min, max, d = 1)
+{
+  theta.hat <- rep(NA, n)
+  for(i in 1:n)
+  {
+    x <- runif(d, min, max)
+    x2 <- 1 - x
+    
+    theta.hat[i] <- (costFx(x) + costFx(x2) ) / 2
+  }
+  
+  return (theta.hat)
+}
+
+#ret <- antitheticMC(10, -5, 5, 2)
+#ret
+#mean(ret)
+```
+
+First we do the D=1 scenario:
+
+```{r, cache=TRUE}
+antitheticMc.D1 <- montecarlo.Loop(d=1, fun=antitheticMC)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(antitheticMc.D1) + 
+  geom_point(aes(x=n, y=mean), colour="lightblue") + 
+  geom_line(aes(x=n, y=mean), colour="lightblue") + 
+  geom_point(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=EcActual), colour="lightgreen") + 
+  labs(title="D=1 Antithetic Monte Carlo Estimate by n", y="mean/stdev") +
+  myTheme
+g1
+```
+
+```{r, echo=FALSE}
+kable(antitheticMc.D1)
+```
+
+Next we do the D=2 scenario with the antithetic function:
+
+```{r, cache=TRUE}
+antitheticMc.D2 <- montecarlo.Loop(d=2, fun=antitheticMC)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(antitheticMc.D2) + 
+  geom_point(aes(x=n, y=mean), colour="lightblue") + 
+  geom_line(aes(x=n, y=mean), colour="lightblue") + 
+  geom_point(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=EcActual), colour="lightgreen") + 
+  labs(title="D=2 Antithetic Monte Carlo Estimate by n", y="mean/stdev") +
+  myTheme
+g1
+```
+
+```{r, echo=FALSE}
+kable(antitheticMc.D2)
+```
+
+### Compare Pure Uniform and Antithetic
+
+The antithetic scenario produces a smaller standard deviation (and therefore variance) in both the D=1 and D=2 cases. The visualizations below illustrate the point. The avarege values are generally the same, centering on the expected value.
+
+```{r}
+comparedMc2.D1 <- data.frame(crudeMc.D1$mean, 
+                            antitheticMc.D1$mean, 
+                            meanDiff=crudeMc.D1$mean - antitheticMc.D1$mean,
+                            crudeMc.D1$stdev, 
+                            antitheticMc.D1$stdev, 
+                            stdevDiff=crudeMc.D1$stdev - antitheticMc.D1$stdev,
+                            n=crudeMc.D1$n)
+kable(comparedMc2.D1)
+```
+
+```{r, echo=FALSE, fig.height=3}
+combinedStdev2.D1 <- data.frame(type="crude", stdev=crudeMc.D1$stdev, n=crudeMc.D1$n)
+combinedStdev2.D1 <- rbind(combinedStdev2.D1, data.frame(type="antithetic", 
+                                                       stdev=antitheticMc.D1$stdev, 
+                                                       n=antitheticMc.D1$n))
+
+g5 <- ggplot(combinedStdev2.D1) + 
+  geom_line(aes(x=n, y=stdev, colour=type)) +
+  labs(title="D=1 Antithetic & Uniform Stdev Side by Side by n", y="stdev") +
+  myTheme
+g5
+```
+
+```{r, echo=FALSE, fig.height=3}
+combinedStdev2.D2 <- data.frame(type="crude", stdev=crudeMc.D2$stdev, n=crudeMc.D2$n)
+combinedStdev2.D2 <- rbind(combinedStdev2.D2, data.frame(type="sobol", 
+                                                        stdev=antitheticMc.D2$stdev, 
+                                                        n=antitheticMc.D2$n))
+
+g6 <- ggplot(combinedStdev2.D2) + 
+  geom_line(aes(x=n, y=stdev, colour=type)) +
+  labs(title="D=2 Antithetic & Uniform Stdev Side by Side by n", y="stdev") +
+  myTheme
+g6
+```
+
+## d) Latin Hypercube Sampling
+
+Well, first we define a function for the hypercube \(V_k\):
+
+```{r}
+hyperV <- function(p, U, K)
+{
+  return ((p + 1 - U) / K)
+}
+```
+
+```{r latinhypercube-monte-carlo}
+latinHypercubeMC <- function(n, min, max, d = 1, k=5)
+{
+  theta.hat <- rep(NA, n)
+  for(i in 1:n)
+  {
+    x <- runif(d, min, max)
+    p <- runif(d * k, min, max)
+    v <- hyperV(p, x, k)
+    
+    theta.hat[i] <- costFx(v)
+  }
+  
+  return (theta.hat)
+}
+
+ret <- latinHypercubeMC(10, -5, 5, 2)
+ret
+mean(ret)
+```
+
+First we do the D=1 scenario:
+
+```{r, cache=TRUE}
+latinHypercubeMc.D1 <- montecarlo.Loop(d=1, fun=latinHypercubeMC)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(latinHypercubeMc.D1) + 
+  geom_point(aes(x=n, y=mean), colour="lightblue") + 
+  geom_line(aes(x=n, y=mean), colour="lightblue") + 
+  geom_point(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=EcActual), colour="lightgreen") + 
+  labs(title="D=1 Latin Hypercube Monte Carlo Estimate by n", y="mean/stdev") +
+  myTheme
+g1
+```
+
+```{r, echo=FALSE}
+kable(latinHypercubeMc.D1)
 ```
