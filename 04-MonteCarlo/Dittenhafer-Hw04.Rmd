@@ -438,16 +438,24 @@ hyperV <- function(p, U, K)
 ```
 
 ```{r latinhypercube-monte-carlo}
-latinHypercubeMC <- function(n, min, max, d = 1, k=5)
+latinHypercubeMC <- function(n, min, max, d = 1, K=5)
 {
   theta.hat <- rep(NA, n)
   for(i in 1:n)
   {
-    x <- runif(d, min, max)
-    p <- runif(d * k, min, max)
-    v <- hyperV(p, x, k)
+
+    U <- matrix(runif(d*K, 0, 1), nrow=d)
+    TT <- matrix(rep(NA, K*d), nrow=K)
+    for(j in 1:d)
+    {
+      TT[j,] <- sample(1:K, size=K)  
+    }
     
-    theta.hat[i] <- costFx(v)
+    Vk <- hyperV(TT, U, K)
+    
+    #print(Vk)
+
+    theta.hat[i] <- mean(costFx(Vk))
   }
   
   return (theta.hat)
@@ -460,7 +468,7 @@ mean(ret)
 
 First we do the D=1 scenario:
 
-```{r, cache=TRUE}
+```{r, cache=FALSE}
 latinHypercubeMc.D1 <- montecarlo.Loop(d=1, fun=latinHypercubeMC)
 ```
 
