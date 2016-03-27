@@ -60,10 +60,14 @@ Goal: estimate E[c(x)] - the expected value of c(x) - using Monte Carlo methods 
 
 ```{r cost-function}
 # First define the cost function as an R function
-costFx <- function(x)
+costFx <- function(x, D=-1)
 {
   b <- exp(-0.5 * t(x) %*% x)
-  D <- length(x)
+  if(D == -1)
+  {
+    D <- length(x)  
+  }
+  
   res <- (1 / ((2 * pi)^(D/2))) * b
   return (res)
 }
@@ -428,40 +432,40 @@ g6
 
 ## d) Latin Hypercube Sampling
 
-Well, first we define a function for the hypercube \(V_k\):
-
-```{r}
-hyperV <- function(p, U, K)
-{
-  return ((p + 1 - U) / K)
-}
-```
-
 ```{r latinhypercube-monte-carlo}
-latinHypercubeMC <- function(n, min, max, d = 1, K=5)
+latinHypercubeMC <- function(n, min, max, d = 1, K=10)
 {
-  theta.hat <- rep(NA, n)
-  for(i in 1:n)
+  #theta.hat <- rep(NA, n)
+  classSize <- (max - min) / K
+  samples <- n / K
+  
+  #print(paste("classSize:", classSize))
+  #print(paste("samples:", samples))
+  
+  # Draw samples in the range of the stratum.
+  Yi <- rep(NA, samples)
+  for(i in 1:samples)
   {
-
-    U <- matrix(runif(d*K, 0, 1), nrow=d)
-    TT <- matrix(rep(NA, K*d), nrow=K)
-    for(j in 1:d)
+    # Loop through each stratum
+    Vk <- rep(NA, K)
+    for(k in 1:K)
     {
-      TT[j,] <- sample(1:K, size=K)  
+      U <- runif(d, 
+                 min + ((k - 1) * classSize), 
+                 min + (k * classSize))
+  
+      #ndx <- ((k - 1) * samples) + s
+      Vk[k] <- costFx(U)
     }
     
-    Vk <- hyperV(TT, U, K)
-    
-    #print(Vk)
-
-    theta.hat[i] <- mean(costFx(Vk))
+    Yi[i] <- mean(Vk)
   }
   
-  return (theta.hat)
+  
+  return (Yi)
 }
 
-ret <- latinHypercubeMC(10, -5, 5, 2)
+ret <- latinHypercubeMC(100, -5, 5, 2)
 ret
 mean(ret)
 ```
@@ -486,4 +490,26 @@ g1
 
 ```{r, echo=FALSE}
 kable(latinHypercubeMc.D1)
+```
+
+Then, the D=2 scenario:
+
+```{r, cache=FALSE}
+latinHypercubeMc.D2 <- montecarlo.Loop(d=2, fun=latinHypercubeMC)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(latinHypercubeMc.D2) + 
+  geom_point(aes(x=n, y=mean), colour="lightblue") + 
+  geom_line(aes(x=n, y=mean), colour="lightblue") + 
+  geom_point(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=EcActual), colour="lightgreen") + 
+  labs(title="D=2 Latin Hypercube Monte Carlo Estimate by n", y="mean/stdev") +
+  myTheme
+g1
+```
+
+```{r, echo=FALSE}
+kable(latinHypercubeMc.D2)
 ```
