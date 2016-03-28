@@ -465,14 +465,14 @@ latinHypercubeMC <- function(n, min, max, d = 1, K=10)
   return (Yi)
 }
 
-ret <- latinHypercubeMC(100, -5, 5, 2)
-ret
-mean(ret)
+#ret <- latinHypercubeMC(100, -5, 5, 2)
+#ret
+#mean(ret)
 ```
 
 First we do the D=1 scenario:
 
-```{r, cache=FALSE}
+```{r, cache=TRUE}
 latinHypercubeMc.D1 <- montecarlo.Loop(d=1, fun=latinHypercubeMC)
 ```
 
@@ -492,9 +492,9 @@ g1
 kable(latinHypercubeMc.D1)
 ```
 
-Then, the D=2 scenario:
+Then, the D=2 scenario. For some reason, this doesn't seem correct. The mean is not converging. Hmm...
 
-```{r, cache=FALSE}
+```{r, cache=TRUE}
 latinHypercubeMc.D2 <- montecarlo.Loop(d=2, fun=latinHypercubeMC)
 ```
 
@@ -512,4 +512,280 @@ g1
 
 ```{r, echo=FALSE}
 kable(latinHypercubeMc.D2)
+```
+
+## e) Importance Sampling
+
+Next up, importance sampling. We define the function \(q(x)=c(x)p(x)/E_p[c(x)]\). This is usually not possible because we don't know the expected value \(E_p\) (it is what we are trying to calculate).
+
+```{r}
+qx <- function(x, d, min, max)
+{
+  cx <- costFx(x)
+  Ecx <- (1/10)^d # since we know it already
+  
+  res <- (cx %*% t(px(x, min, max))) / Ecx
+  
+  return(res)
+}
+
+px <- function(x, min, max)
+{
+  return (dunif(x, min, max))
+}
+
+wx <- function(x, d, min, max)
+{
+  w <- px(x[1], min, max) / qx(x[1], d, min, max)
+  return(w)
+}
+```
+
+\[E_p[c(x)] = \int c(x) q(x) w(x) dx\]
+
+\[q(x)=\frac{c(x)p(x)}{E_p[c(x)]}\]
+
+\[w(x)=\frac{c(x)}{q(x)}\]
+
+The \(q(x)\) denominator of \(w(x)\) would cancel out the \(q(x)\) in the case where we have the above functions leaving the \(c(x)\) of the \(w(x)\) remaining.
+
+```{r}
+# Helper function for the Accept/Reject approach
+myRARmethod <- function(fun, min, max)
+{
+  M <- 2
+  accepted <- FALSE
+  while(!accepted)
+  {
+    # Get a random value from uniform distrubtion (g(x) for us)
+    r <- runif(1, min, max)
+
+    # Sample x from g(x) and u from U(0,1) (the uniform distribution over the unit interval)
+    u <- runif(1, 0, 1)
+    gx <- dunif(r, min, max)
+
+    # Check whether or not u<f(x)/Mg(x). 
+    if(u < fun(r, 1, min, max) / (M * gx))
+    {
+      accepted = TRUE
+    }
+  }
+
+  return(r)
+}
+
+importanceSampleMC <- function(n, min, max, d = 1)
+{
+  theta.hat <- rep(NA, n)
+  for(i in 1:n)
+  {
+    x <- rep(NA, d)
+    for(j in 1:d)
+    {
+      x[j] <- myRARmethod(qx, min, max)
+    }
+
+    xw <- wx(x, d, min, max)
+    theta.hat[i] <- costFx(x) * xw
+  }
+  
+  return (theta.hat)
+}
+ret <- importanceSampleMC(20, -5, 5, 2)
+ret
+mean(ret)
+```
+
+First we do the D=1 scenario. Given the 0 standard deviation, this is certainly a minimum variance, but a bit surprised this is the case... maybe that is the expected result.
+
+```{r, cache=TRUE}
+importanceSampleMC.D1 <- montecarlo.Loop(d=1, fun=importanceSampleMC)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(importanceSampleMC.D1) + 
+  geom_point(aes(x=n, y=mean), colour="lightblue") + 
+  geom_line(aes(x=n, y=mean), colour="lightblue") + 
+  geom_point(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=EcActual), colour="lightgreen") + 
+  labs(title="D=1 Importance Sampling Monte Carlo Estimate by n", y="mean/stdev") +
+  myTheme
+g1
+```
+
+```{r, echo=FALSE}
+kable(importanceSampleMC.D1)
+```
+
+Then, the D=2 scenario of importance sampling. Again, this is not converging so I guess I've missed something in my algorithm.
+
+```{r, cache=TRUE}
+importanceSampleMC.D2 <- montecarlo.Loop(d=2, fun=importanceSampleMC)
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(importanceSampleMC.D2) + 
+  geom_point(aes(x=n, y=mean), colour="lightblue") + 
+  geom_line(aes(x=n, y=mean), colour="lightblue") + 
+  geom_point(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=stdev), colour="pink") + 
+  geom_line(aes(x=n, y=EcActual), colour="lightgreen") + 
+  labs(title="D=2 Importance Sampling Monte Carlo Estimate by n", y="mean/stdev") +
+  myTheme
+g1
+```
+
+```{r, echo=FALSE}
+kable(importanceSampleMC.D2)
+```
+
+## f) Summary
+
+As previously shown, we saw variance reduction with each of the methods. The latin hypercube technique seemed to provide the most variance reduction at least in the D=1 case. 
+
+# 2)
+
+## 6.3
+
+**Plot the power curves for the t-test in Example 6.9 for samples sizes 10, 20, 30, 40 and 50. but omit the standard error bars. Plot the curves on the same graph, each in a different color or different line type, and include a legend. Comment on the relation between power and sample size.**
+
+```{r, cache=TRUE}
+N<- c(10, 20, 30, 40, 50)
+m <- 1000
+mu0 <- 500
+sigma <- 100
+mu <- c(seq(450, 650, 10))
+M <- length(mu)
+
+dfPower <- data.frame(sample.size=c(), mu=c(), power=c())
+
+for(n in N)
+{
+  for(i in 1:M)
+  {
+    mu1 <- mu[i]
+    pvalues <- replicate(m, expr={
+      # comment
+      x <- rnorm(n, mean=mu1, sd=sigma)
+      ttest <- t.test(x, alternative="greater", mu=mu0)
+      ttest$p.value 
+    })
+    
+    dfPower <- rbind(dfPower, data.frame(sample.size=n, mu=mu1, power=mean(pvalues <= 0.05)))
+  }
+}
+
+```
+
+As shown in the following visualization, the power values ramp up faster as the number of samples increases though there is a degree of diminishing returns on the ramp up.
+
+```{r, fig.height=3, echo=FALSE}
+dfPower$sample.size <- as.factor(dfPower$sample.size)
+g21 <- ggplot(dfPower) + 
+  geom_path(aes(x=mu, y=power, colour=sample.size)) + 
+  labs(title="Power Curves") +
+  myTheme
+g21
+```
+
+### 6.4
+
+**Suppose the \(X_1,...,X_n\) are a random sample from a lognormal distribution with unknown parameters. Construct a 95% confidence interval for the parameter \(\mu\). Use a Monte Carlo method to obtain an empirical estimate of the confidence level.**
+
+The following code runs a Monte Carlo simulation of using random log normal variables to estimate the \(\mu\) parameter and produce a confidence level.
+
+```{r}
+m < 1000
+n <- 2500
+mu <- 1
+sigma <- 0.5
+alpha <- 0.05
+
+res <- replicate(m, expr={
+  x <- rlnorm(n, meanlog=mu, sdlog=sigma)
+  
+  log.mean <- mean(log(x))
+  log.sd <- sd(log(x))
+  log.se <- log.sd / sqrt(n)
+  t.val <- qt(1 - alpha / 2, n - 1)
+  
+  CI <- c(log.mean, log.mean - (t.val * log.se), log.mean + (t.val * log.se))
+  CI
+  
+  #log.mean
+  #log.sd
+})
+
+theCI <- c(mean(res[2,]), mean(res[3,]))
+theCI
+
+theCL <- mean(res[2,] < (0.999) & (1.001) < res[3,])
+theCL
+```
+
+### 7.1
+
+**Compute the jackknife esimate of the bias and the standard error of the correlation statistic in Example 7.2**
+
+The following code uses jackknife to compute the bias of the law data:
+
+```{r}
+library(bootstrap)
+
+n <- nrow(law)
+theta.hat <- mean(law$LSAT) / mean(law$GPA)
+theta.hat
+
+theta.jack <- numeric(n)
+
+for(i in 1:n)
+{
+  theta.jack[i] <- mean(law$LSAT[-i] / mean(law$GPA[-i]))
+}
+bias <- (n-1) * (mean(theta.jack) - theta.hat)
+bias
+```
+
+Next we estimate the standard error of the correlation statistic:
+
+```{r}
+#cor.theta.hat <- cor(law$LSAT, law$GPA)
+#cor.theta.hat
+
+cor.theta.jack <- numeric(n)
+
+for(i in 1:n)
+{
+  cor.theta.jack[i] <- cor(law$LSAT[-i] , law$GPA[-i])
+}
+se.cor.jack <- sqrt( ((n-1)) * mean( ( cor.theta.jack - mean(cor.theta.jack))^2 ) )
+se.cor.jack
+```
+
+### 7.4
+
+**Refer to the air-conditioning data set aircondit provided in the boot package. The 12 observations are the times in hours between failures of air-conditioning equipment. Assume that the times between failures follow an exponential model \(Exp(\lambda)\). Obtain the MLE of the hazard rate \(\lambda\) and use bootstrap to estimate the bias and standard error of the estimate.**
+
+```{r}
+library(boot)
+head(aircondit)
+
+B <- 10
+n <- length(aircondit)
+
+lambda.hat <- n / sum(aircondit)
+lambda.hat
+
+theta.boot <- numeric(B)
+for(b in 1:B)
+{
+  x <- sample(aircondit, size=n, replace = TRUE)
+  theta.boot[b] <- n / sum(x) 
+}
+# Standard error of estimate of lambda
+se.lambda.boot <- sd(theta.boot)
+se.lambda.boot
+
+
 ```
