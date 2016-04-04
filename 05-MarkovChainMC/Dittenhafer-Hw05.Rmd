@@ -1,0 +1,122 @@
+---
+title: "Homework 5"
+subtitle: "DATA604 Simulation and Modeling"
+author: "Daniel Dittenhafer"
+date: "April 10, 2016"
+output: pdf_document
+classoption: portrait
+geometry: margin=0.5in
+---
+```{r, echo=FALSE, message=FALSE}
+library(knitr)
+#library(gplots)
+library(ggplot2)
+library(randtoolbox)
+#library(gridExtra)
+#library(plot3D)
+#library(tseries)
+set.seed(20275)
+# My ggplot theme
+myTheme <- theme(axis.ticks=element_blank(),
+                 axis.title=element_text(size="10"),
+                  panel.border = element_rect(color="gray", fill=NA), 
+                  panel.background=element_rect(fill="#FBFBFB"), 
+                  panel.grid.major.y=element_line(color="white", size=0.5), 
+                  panel.grid.major.x=element_line(color="white", size=0.5),
+                  plot.title=element_text(size="10"))
+```
+
+```{r, echo=FALSE, message=FALSE}
+library(knitcitations)
+library(RefManageR)
+
+cleanbib()
+
+cite_options(style="markdown")
+
+bibPkgTseries <- bibentry(bibtype="Misc",
+                 author=personList(person(family="Trapletti", given="Adrian"), 
+                                   person(family="Hornik", given="Kurt")),
+                 journal="Annual Review of Sociology",
+                 title="tseries: Time Series Analysis and Computational Finance",
+                 year=2015,
+                 note="R package version 0.10-34",
+                 url="http://CRAN.R-project.org/package=tseries")
+```
+
+# 1
+
+*At the start of each week, the condition of a machine is determined by measuring the amount of electrical current it uses. According to its amperage reading, the machine is categorized as being in one of the following four states: low, medium, high and failed. A machine in the low state has a probability of 0.05, 0.03, and 0.02 of being in the medium, high, or failed state, respectively, at the start of the next week. A machine in the medium state has a probability of 0.09 and 0.06 of being in the high or failed state, respectively, at the start of the next week (it cannot, by itself, go to the low state). And, a machine in the high state has a probability of 0.1 of being in the failed state at the start of the next week (it cannot, by itself, go to the low or medium state). If a machine is in the failed state at the start of a week, repair is immediately begun on the machine so that it will (with probability 1) be in the low state at the start of the following week. Let X be a Markov chain where Xn is the state of the machine at the start of week n.*
+
+## a) Given the Markov transition matrix for \(X\).
+
+The following code creates and prints the Markov transition matrix for \(X\).
+
+```{r}
+tmX <- matrix(c(0.90, 0.05, 0.03, 0.02, 
+                0, 0.85, 0.09, 0.06,
+                0, 0.00, 0.90, 0.10,
+                1, 0.00, 0.00, 0.00), nrow=4, byrow=TRUE)
+tmX
+```
+
+
+## b) A new machine always starts in the low state. What is the probability that the machine is in the failed state three weeks after it is new?
+
+First we define a helper function:
+
+```{r}
+markovChainStep <- function(initialState, tranMatrix, steps)
+{
+  n <- steps
+  step <- initialState
+  for(i in 1:n)
+  {
+    step <- step %*% tranMatrix
+  }
+  return (step)
+}
+```
+
+Next we call the helper function to compute the requested probability. We step twice in the function as it is 2 steps beyond the initial probability state.
+
+```{r}
+bStep <- markovChainStep(tmX, tmX, 2)
+kable(bStep)
+```
+
+The probability that the machine is in the failed state 3 weeks after it is new is `r bStep[1,4]`.
+
+
+## c) What is the probabililty that a machine has at least one failure three weeks after is is new?
+
+Adding up the failure probabilities for each of the 3 weeks would yiield the probabilty of at least one failure during the 3 three week time frame. Here we use the low -> failed probability from week 1, plus the full array of failure probabilites from weeks 2 and 3.
+
+```{r}
+firstWeek <- tmX
+secondWeek <- markovChainStep(tmX, tmX, 1)
+thirdWeek <- bStep
+
+# Add up the probabilities for each week
+noFailures <- tmX[1:3,1:3]
+noFailsIn3Wks <- markovChainStep(noFailures, noFailures, 2)
+noFailsIn3Wks
+#atLeastOneFailaure3Wks <- firstWeek[1,4] + sum(secondWeek[,4]) + sum(thirdWeek[,4])
+#atLeastOneFailaure3Wks
+```
+
+
+## d) What is the expected number of weeks after a new machine is installed until the first failure occurs?
+
+```{r}
+longRun <- markovChainStep(tmX, tmX, 25)
+longRun
+
+1 / longRun[1,4]
+```
+
+## e) On average, how many weeks per year is the machine working?
+
+```{r}
+# Use Metropolis-Hastings to estimate?
+```
