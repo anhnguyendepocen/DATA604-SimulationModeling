@@ -57,9 +57,8 @@ tmX <- matrix(c(0.90, 0.05, 0.03, 0.02,
                 0, 0.85, 0.09, 0.06,
                 0, 0.00, 0.90, 0.10,
                 1, 0.00, 0.00, 0.00), nrow=4, byrow=TRUE)
-tmX
+kable(tmX)
 ```
-
 
 ## b) A new machine always starts in the low state. What is the probability that the machine is in the failed state three weeks after it is new?
 
@@ -90,33 +89,103 @@ The probability that the machine is in the failed state 3 weeks after it is new 
 
 ## c) What is the probabililty that a machine has at least one failure three weeks after is is new?
 
-Adding up the failure probabilities for each of the 3 weeks would yiield the probabilty of at least one failure during the 3 three week time frame. Here we use the low -> failed probability from week 1, plus the full array of failure probabilites from weeks 2 and 3.
+Compute the steady state probabilities for this recurrent transition matrix.
 
 ```{r}
-firstWeek <- tmX
-secondWeek <- markovChainStep(tmX, tmX, 1)
-thirdWeek <- bStep
+steadyState <- markovChainStep(tmX, tmX, 100)
+steadyState
 
-# Add up the probabilities for each week
-noFailures <- tmX[1:3,1:3]
-noFailsIn3Wks <- markovChainStep(noFailures, noFailures, 2)
-noFailsIn3Wks
-#atLeastOneFailaure3Wks <- firstWeek[1,4] + sum(secondWeek[,4]) + sum(thirdWeek[,4])
-#atLeastOneFailaure3Wks
+steadyState[1,4]
+```
+
+
+```{r}
+Fm <- matrix(c(1, 1, 1, 1,
+               1, 1, 1, 1,
+               1, 1, 1, 1,
+               1, 1, 1, 1), byrow=TRUE, nrow=4)
+Fm
+
+Rm <- matrix(nrow=4, ncol=4)
+for(i in 1:nrow(Fm))
+{
+  for(j in 1:ncol(Fm))
+  {
+    if(i == j)
+    {
+      Rm[i,j] <- 1 / (1 - Fm[j,j])
+    }
+    else
+    {
+      Rm[i,j] <- Fm[i,j] / (1 - Fm[j,j])
+    }
+  }
+}
+  
+Rm
 ```
 
 
 ## d) What is the expected number of weeks after a new machine is installed until the first failure occurs?
 
 ```{r}
-longRun <- markovChainStep(tmX, tmX, 25)
-longRun
-
-1 / longRun[1,4]
+1 / steadyState[1,4]
 ```
 
 ## e) On average, how many weeks per year is the machine working?
 
 ```{r}
 # Use Metropolis-Hastings to estimate?
+```
+
+## f) Each week that the machine is in the low state...
+
+**a profit of $1000 is realized; each eweek that the machine is in the medium state, a profit of $500 is realized; each week tha the machine is in the high state, a profit of $400 is realized... What is the long-run average profit per week realized by the machine?**
+
+```{r}
+PL <- c(1000, 500, 400, -700)
+PL
+
+lrAvgProfit <- PL %*% steadyState[1, ]
+lrAvgProfit
+```
+
+## g) Policy change?
+
+Define the new profit and loss values:
+
+```{r}
+newPL <- c(1000, 500, -600, -700)
+newPL
+```
+
+Define the new transition matrix:
+
+```{r}
+newX <- matrix(c(0.90, 0.05, 0.03, 0.02, 
+                    0, 0.85, 0.09, 0.06,
+                    1, 0.00, 0.00, 0.00,
+                    1, 0.00, 0.00, 0.00), nrow=4, byrow=TRUE)
+kable(newX)
+```
+
+Compute the new steady state and long-run average profit:
+
+```{r}
+newSteadyState <- markovChainStep(newX, newX, 100)
+
+newLrAvgProfit <- newPL %*% newSteadyState[1, ]
+newLrAvgProfit
+```
+
+At an average profit of $ `r round(newLrAvgProfit, 2)`, an \(\approx `r round(newLrAvgProfit - lrAvgProfit, 2)`\) increase, the new policy is worthwhile.
+
+# 2
+
+**Rao (1973) presented an example on genetic linkage of 197 animals in four categories. The group sizes are (125, 18, 20, 34). Assume that the probabilities of the corresponding multinomial distribution are ... **
+
+
+```{r}
+
+
 ```
