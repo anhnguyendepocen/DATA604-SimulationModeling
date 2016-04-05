@@ -12,7 +12,7 @@ library(knitr)
 #library(gplots)
 library(ggplot2)
 library(randtoolbox)
-#library(gridExtra)
+library(gridExtra)
 #library(plot3D)
 #library(tseries)
 set.seed(20275)
@@ -186,6 +186,44 @@ At an average profit of $ `r round(newLrAvgProfit, 2)`, an \(\approx `r round(ne
 
 
 ```{r}
+groupSizes <- c(125, 18, 20, 34)
 
+w <- 0.25
+m <- 5000
+burn <- 1000
+#days <-  250
+x <- numeric(m)
+
+# Function to wrap the computation of the target density.
+prob <- function(theta, K) {
+  p <- (0.5 + (theta / 4))^K[1] * (1 - theta / 4)^K[2] * (1 - theta / 4)^K[3] * (theta/4)^K[4] 
+}
+# Random Walk - Metropolis algorithm
+u <- runif(m)
+v <- runif(m, -w, w)
+x[1] <- 0.25
+for(i in 2:m) {
+  y <- x[i-1] + v[i]
+  if(u[i] <= prob(y, groupSizes) / prob(x[i-1], groupSizes)) {
+    x[i] <- y 
+  } else {
+    x[i] <- x[i-1]
+  }
+}
+# Use mean to distill the MCMC results to a single value
+xb <- x[burn + 1: m]
+theta.hat <- mean(xb, na.rm = TRUE)
+print(theta.hat)
+```
+
+The estimate of \(\theta\) is `r theta.hat`. The following charts show the random walk Metropolis chain and resulting empirical distribution.
+
+```{r, fig.height=3, message=FALSE, echo=FALSE}
+dfX <- data.frame(index=seq(1, m), x=x)
+g1 <- ggplot(dfX) + geom_line(aes(x=index, y=x)) + myTheme
+
+g2 <- ggplot(dfX) + geom_histogram(aes(x=x)) + myTheme
+
+grid.arrange(g1, g2, ncol=2)
 
 ```
