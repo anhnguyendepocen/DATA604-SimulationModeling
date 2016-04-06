@@ -6,6 +6,8 @@ date: "April 10, 2016"
 output: pdf_document
 classoption: portrait
 geometry: margin=0.5in
+bibliography: references.bib
+csl: ../emerald-harvard.csl
 ---
 ```{r, echo=FALSE, message=FALSE}
 library(knitr)
@@ -227,3 +229,99 @@ g2 <- ggplot(dfX) + geom_histogram(aes(x=x)) + myTheme
 grid.arrange(g1, g2, ncol=2)
 
 ```
+
+# 3
+
+Define the provided Y vector:
+
+```{r}
+Y <- c(4,5,4,1,0,4,3,4,0,6,3,3,4,0,2,6,3,3,5,4,5,3,1,4,4,1,5,5,3,4,2,5,2,2,3,4,2,1,3,2,2,1,1,1,1,3,0,0,1,0,1, 1,0,0,3,1,0,3,2,2,0,1,1,1,0,1,0,1,0,0,0,2,1,0,0,0,1,1,0,2,3,3,1,1,2,1,1,1,1,2,4,2,0,0,0,1,4,0,0,0,1,0,0,0,0,0,1,0,0,1,0,1)
+```
+
+Define the `fullcondm` function per the implementation pseudo code.
+
+```{r}
+fullcondm <- function(m, lambda, phi, y, n, alpha0, beta0, gamma0, delta0)
+{
+  
+  lamexp <- ifelse(m > 1, sum(y[1:m]), 0)
+  phiexp <- ifelse(m < n, sum(y[m+1:n]), 0)
+  
+  return (lambda^(alpha0-1+lamexp)*exp(-(beta0+m)*lambda)*phi^(gamma0-1+phiexp)*exp(-(delta0+n-m)*phi))
+}
+```
+
+
+Define the `R` code for the Gibbs sample based onthe pseudo-code for implementation:
+
+```{r}
+alpha0 <- 1
+gamma0 <- 1
+
+n <- length(Y)
+z <- 1000
+lambda <- phi <- m <- B <- delta <- numeric(z)
+#L <- numeric(n)
+
+lambda[1] <- 1
+phi[1] <- 1
+m <-  sample(1:n, 1)
+B[1] <- 1
+delta[1] <- 1
+
+Mprob <- numeric(n)
+mChain <- matrix(nrow=z, ncol=5)
+
+# Gibbs Sampler
+for(i in 1:z) {
+  
+  
+  sum1 <- sum(Y[1:m])
+  sum2 <- sum(Y[(m+1):n])
+  
+  lambda[i] <- rgamma(1, sum1+alpha0, B[i] / (B[i] * m + 1))
+  phi[i] <- rgamma(1, sum2+gamma0, delta[i] / ( delta[i] * (n-m) + 1))
+  
+  for(j in 1:n) {
+    Mprob[j] <- fullcondm(j, lambda[i], phi[i], Y, n, alpha0, B[i], gamma0, delta[i])
+  }
+  
+  m <- sample(Mprob, 1)
+    
+  B[i+1] <- 1 / rgamma(1, alpha0, lambda[i] + 1)
+  delta[i+1] <- 1 / rgamma(1, gamma0, phi[i] + 1)
+  
+  mChain[i,] <- c(lambda[i], phi[i], m, B[i], delta[i])
+  
+}
+
+
+
+```
+
+```{r, fig.height=3, echo=FALSE, message=FALSE}
+dfMChain <- as.data.frame(mChain)
+colnames(dfMChain) <- c("lambda", "phi", "m", "beta", "delta")
+g1 <- ggplot(dfMChain) + geom_histogram(aes(x=lambda)) + myTheme
+g2 <- ggplot(dfMChain) + geom_histogram(aes(x=phi)) + myTheme
+g3 <- ggplot(dfMChain) + geom_histogram(aes(x=m)) + myTheme
+
+grid.arrange(g1, g2, g3, ncol=3)
+```
+
+
+### Experiment with Citations
+
+The citation: `r citep("10.1111/j.0006-341X.1999.00001.x")`
+
+[@Mau_1999]
+
+```{r, echo=FALSE, message=FALSE}
+#
+#BibOptions(style="html", bib.style="authortitle")
+#bibliography()
+write.bibtex(file="references.bib")
+```
+
+# References
+
