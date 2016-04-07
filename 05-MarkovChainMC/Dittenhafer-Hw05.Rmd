@@ -241,13 +241,23 @@ Y <- c(4,5,4,1,0,4,3,4,0,6,3,3,4,0,2,6,3,3,5,4,5,3,1,4,4,1,5,5,3,4,2,5,2,2,3,4,2
 Define the `fullcondm` function per the implementation pseudo code.
 
 ```{r}
-fullcondm <- function(m, lambda, phi, y, n, alpha0, beta0, gamma0, delta0)
+fullcondm <- function(m, lambda, phi, y, n, alpha0, beta0, gamma0, delta0, verbose=FALSE)
 {
   
   lamexp <- ifelse(m > 1, sum(y[1:m]), 0)
   phiexp <- ifelse(m < n, sum(y[m+1:n]), 0)
   
-  return (lambda^(alpha0-1+lamexp)*exp(-(beta0+m)*lambda)*phi^(gamma0-1+phiexp)*exp(-(delta0+n-m)*phi))
+  t1 <- lambda^(alpha0-1+lamexp)
+  t2 <- exp(-(beta0+m)*lambda)
+  t3 <- phi^(gamma0-1+phiexp)
+  t4 <- exp(-(delta0+n-m)*phi)
+  
+  if(verbose == TRUE)
+  {
+    print(paste(t1, t2, t3, t4, sep=" "))  
+  }
+  
+  return (t1*t2*t3*t4)
 }
 ```
 
@@ -255,46 +265,62 @@ fullcondm <- function(m, lambda, phi, y, n, alpha0, beta0, gamma0, delta0)
 Define the `R` code for the Gibbs sample based onthe pseudo-code for implementation:
 
 ```{r}
-alpha0 <- 1
-gamma0 <- 1
-
-n <- length(Y)
-z <- 1000
-lambda <- phi <- m <- B <- delta <- numeric(z)
-#L <- numeric(n)
-
-lambda[1] <- 1
-phi[1] <- 1
-m <-  sample(1:n, 1)
-B[1] <- 1
-delta[1] <- 1
-
-Mprob <- numeric(n)
-mChain <- matrix(nrow=z, ncol=5)
-
-# Gibbs Sampler
-for(i in 1:z) {
+gibbsSampler3 <- function(alpha0, gamma0)
+{
+  n <- length(Y)
+  z <- 1000
+  #lambda <- phi <- B <- delta <- numeric(z)
+  #L <- numeric(n)
   
+  lambda <- 1
+  phi <- 1
+  m <-  sample(1:n, 1)
+  B <- 1
+  delta <- 1
   
-  sum1 <- sum(Y[1:m])
-  sum2 <- sum(Y[(m+1):n])
+  Mprob <- numeric(n)
+  mChain <- matrix(nrow=z, ncol=5)
   
-  lambda[i] <- rgamma(1, sum1+alpha0, B[i] / (B[i] * m + 1))
-  phi[i] <- rgamma(1, sum2+gamma0, delta[i] / ( delta[i] * (n-m) + 1))
-  
-  for(j in 1:n) {
-    Mprob[j] <- fullcondm(j, lambda[i], phi[i], Y, n, alpha0, B[i], gamma0, delta[i])
-  }
-  
-  m <- sample(Mprob, 1)
+  # Gibbs Sampler
+  for(i in 1:z) {
     
-  B[i+1] <- 1 / rgamma(1, alpha0, lambda[i] + 1)
-  delta[i+1] <- 1 / rgamma(1, gamma0, phi[i] + 1)
+    
+    sum1 <- sum(Y[1:m])
+    sum2 <- sum(Y[(m+1):n])
+    
+    lambda <- rgamma(1, sum1+alpha0, B / (B * m + 1))
+    phi <- rgamma(1, sum2+gamma0, delta / ( delta * (n-m) + 1))
+    
+    for(j in 1:n) {
+      Mprob[j] <- fullcondm(j, lambda, phi, Y, n, alpha0, B, gamma0, delta, TRUE)
+    }
+    
+    m <- sample(1:n, size=1, prob=Mprob)
   
-  mChain[i,] <- c(lambda[i], phi[i], m, B[i], delta[i])
-  
+    bDone <- FALSE
+    while(!bDone) {
+      B <- 1 / rgamma(1, alpha0, lambda + 1)  
+      if(B <= 99)
+      {
+        bDone <- TRUE
+      }
+    }    
+    
+    bDone <- FALSE
+    while(!bDone) {
+      delta <- 1 / rgamma(1, gamma0, phi + 1)
+      if(delta <= 99)
+      {
+        bDone <- TRUE
+      }
+    }    
+    
+    mChain[i,] <- c(lambda, phi, m, B, delta)
+    
+  }
 }
 
+gibbsSampler3(-5,-5)
 
 
 ```
@@ -314,7 +340,7 @@ grid.arrange(g1, g2, g3, ncol=3)
 
 The citation: `r citep("10.1111/j.0006-341X.1999.00001.x")`
 
-[@Mau_1999]
+Another citation approach: [@Mau_1999]
 
 ```{r, echo=FALSE, message=FALSE}
 #
