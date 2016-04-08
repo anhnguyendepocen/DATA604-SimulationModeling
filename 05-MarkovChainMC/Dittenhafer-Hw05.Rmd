@@ -245,7 +245,9 @@ fullcondm <- function(m, lambda, phi, y, n, alpha0, beta0, gamma0, delta0, verbo
 {
   
   lamexp <- ifelse(m > 1, sum(y[1:m]), 0)
-  phiexp <- ifelse(m < n, sum(y[m+1:n]), 0)
+  phiexp <- ifelse(m < n, sum(y[(m+1):n]), 0)
+  
+  
   
   t1 <- lambda^(alpha0-1+lamexp)
   t2 <- exp(-(beta0+m)*lambda)
@@ -254,7 +256,7 @@ fullcondm <- function(m, lambda, phi, y, n, alpha0, beta0, gamma0, delta0, verbo
   
   if(verbose == TRUE)
   {
-    print(paste(t1, t2, t3, t4, sep=" "))  
+    print(paste(t1, t2, t3, t4, lamexp, phiexp, sep=" "))  
   }
   
   return (t1*t2*t3*t4)
@@ -288,18 +290,18 @@ gibbsSampler3 <- function(alpha0, gamma0)
     sum1 <- sum(Y[1:m])
     sum2 <- sum(Y[(m+1):n])
     
-    lambda <- rgamma(1, sum1+alpha0, B / (B * m + 1))
-    phi <- rgamma(1, sum2+gamma0, delta / ( delta * (n-m) + 1))
+    lambda <- rgamma(1, shape=sum1+alpha0, scale=B / (B * m + 1))
+    phi <- rgamma(1, shape=sum2+gamma0, scale=delta / ( delta * (n-m) + 1))
     
     for(j in 1:n) {
-      Mprob[j] <- fullcondm(j, lambda, phi, Y, n, alpha0, B, gamma0, delta, TRUE)
+      Mprob[j] <- fullcondm(j, lambda, phi, Y, n, alpha0, B, gamma0, delta, FALSE)
     }
     
     m <- sample(1:n, size=1, prob=Mprob)
   
     bDone <- FALSE
     while(!bDone) {
-      B <- 1 / rgamma(1, alpha0, lambda + 1)  
+      B <- 1 / rgamma(1, shape=alpha0, scale=lambda + 1)  
       if(B <= 99)
       {
         bDone <- TRUE
@@ -308,7 +310,7 @@ gibbsSampler3 <- function(alpha0, gamma0)
     
     bDone <- FALSE
     while(!bDone) {
-      delta <- 1 / rgamma(1, gamma0, phi + 1)
+      delta <- 1 / rgamma(1, shape=gamma0, scale=phi + 1)
       if(delta <= 99)
       {
         bDone <- TRUE
@@ -318,25 +320,215 @@ gibbsSampler3 <- function(alpha0, gamma0)
     mChain[i,] <- c(lambda, phi, m, B, delta)
     
   }
+  
+  return (mChain)
 }
 
-gibbsSampler3(-5,-5)
+gibbsData <- gibbsSampler3(1, 1)
 
 
 ```
 
+## a) Run your code for 5000 iterations. 
+
 ```{r, fig.height=3, echo=FALSE, message=FALSE}
-dfMChain <- as.data.frame(mChain)
+dfMChain <- as.data.frame(gibbsData)
 colnames(dfMChain) <- c("lambda", "phi", "m", "beta", "delta")
-g1 <- ggplot(dfMChain) + geom_histogram(aes(x=lambda)) + myTheme
-g2 <- ggplot(dfMChain) + geom_histogram(aes(x=phi)) + myTheme
-g3 <- ggplot(dfMChain) + geom_histogram(aes(x=m)) + myTheme
+g1 <- ggplot(dfMChain) + 
+  geom_histogram(aes(x=lambda)) + 
+  myTheme +
+  labs(title="Histogram of Lambda")
+g2 <- ggplot(dfMChain) + 
+  geom_histogram(aes(x=phi)) + 
+  myTheme +
+  labs(title="Histogram of phi")
+g3 <- ggplot(dfMChain) + 
+  geom_histogram(aes(x=m)) + 
+  myTheme +
+  labs(title="Histogram of m")
 
 grid.arrange(g1, g2, g3, ncol=3)
 ```
 
+```{r, fig.height=3, echo=FALSE, message=FALSE}
+g1 <- ggplot(dfMChain) + 
+  geom_line(aes(x=lambda, y=phi)) +
+  myTheme +
+  labs(title="Plot of Lambda vs Phi")
+g2 <- ggplot(dfMChain) + 
+  geom_line(aes(x=lambda, y=m)) + 
+  myTheme +
+  labs(title="Plot of Lambda vs m")
+g3 <- ggplot(dfMChain) + 
+  geom_line(aes(x=beta, y=delta)) +
+  myTheme +
+  labs(title="Plot of beta vs delta")
 
-### Experiment with Citations
+grid.arrange(g1, g2, g3, ncol=3)
+```
+
+## b) 
+
+### When do you think the change point occured? 
+
+```{r}
+mMean <- mean(dfMChain$m)
+mMean
+
+roundedM <- round(mMean)
+```
+
+Rounding to a whole year, it appears `r roundedM` years would be change point. The 95% confidence interval is computed based on the standard deviation of the vector of m's generated from the MCMC simulation as shown below:
+
+```{r}
+n <- length(Y)
+sdM <- sd(dfMChain$m)
+tVal <- pt(0.975, df=n-1)
+seM <- sdM / sqrt(n)
+
+ci95 <- c(mMean - (tVal * sdM), mMean + (tVal * sdM))
+ci95
+```
+
+### What are the average rates of coal mining accidents before and after the change?
+
+The following code computes the before and after change point means:
+
+```{r}
+beforeMean <- mean(Y[1:roundedM])
+beforeMean
+
+afterMean <- mean(Y[(roundedM+1):n])
+afterMean
+```
+
+As shown in the line chart below, there does appear to be a difference in the data prior to 41 versus after 41 (the blue line = 41).
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(data.frame(i=seq(1,n), accidents=Y)) + 
+  geom_line(aes(x=i, y=accidents)) + 
+  geom_vline(xintercept=roundedM, colour="lightblue") + 
+  myTheme
+g1
+```
+
+
+## c) How is Gibbs sampling different from the Metropolis-Hastings approach?
+
+Gibbs sampling is a special case of Metropolis-Hastings, where every sampled point is accepted.
+
+# 4) Traveling Salesman Problem
+
+First define the cost matrix:
+
+```{r}
+C <- as.matrix(read.table("TravelingSalesmenCosts.csv", sep=","))
+kable(C)
+```
+
+```{r}
+costTsp <- function(sol, C)
+{
+  cost <- 0
+  for(i in 2:length(sol))
+  {
+    a <- sol[i - 1]
+    b <- sol[i]
+    cost <- cost + as.numeric(C[a,b])
+  }
+  
+  return (cost)
+}
+```
+
+```{r}
+simulatedAnnealingTsp <- function(T, z, beta, C)
+{
+  n <- nrow(C)
+  results <- numeric(z)
+  path <- matrix(nrow=z, ncol=n)
+  
+  x <- sample(1:17, 17, replace=FALSE)
+  Sx <- costTsp(x, C)
+  xbest <- x
+  sbest <- Sx
+  
+  
+  for( i in 1:z ) 
+  {
+    x <- sample(1:17, 17, replace=FALSE)
+    ft <-  x[1:2]
+    I <- ft[order(ft)]
+    y <- x #c(x[1:I[1]-1], x[I[2]:-1:]
+    
+    Sy <- costTsp(y, C)
+    alpha <- ifelse( Sy < Sx, 1, exp(-(Sy-Sx)/T))
+    u <- runif(1, 0, 1)
+    if(u < alpha)
+    {
+      x <- y
+      Sx <- Sy
+    }
+    
+    T <- beta * T
+    
+    xbest <- x
+    sbest <- Sx
+    
+    results[i] <- sbest
+    path[i,] <- x
+  }
+  
+  return(list(costs=results, paths=path))
+}
+
+z <- 10000
+T <- 1
+beta <- 0.9999
+res <- simulatedAnnealingTsp(T, z, beta, C)
+
+# Minimum solution and path:
+min(res$costs)
+ndxMin <- which.min(res$costs)
+res$paths[ndxMin,]
+```
+
+A random tour, for comparison:
+
+```{r}
+n <- nrow(C)
+r <- sample(1:n, n, replace=FALSE)
+costTsp(r, C)
+```
+
+The following histogram shows the distribution of the costs through the simulated annealing process:
+
+```{r, echo=FALSE, fig.height=3, message=FALSE}
+dfResult <- data.frame(Sx=res$costs)
+g1 <- ggplot(dfResult) + 
+  geom_histogram(aes(x=Sx)) +
+  myTheme
+g1
+```
+
+```{r}
+z2 <- 5
+costList <- numeric(z2)
+for(i in 1:z2)
+{
+  res <- simulatedAnnealingTsp(T, z, beta, C)
+  costList[i] <- min(res$costs)
+}
+```
+
+```{r, echo=FALSE, fig.height=3}
+g1 <- ggplot(data.frame(i=seq(1, z2), cost=costList)) + 
+  geom_line(aes(x=i, y=cost)) + 
+  myTheme
+g1
+```
+
+# Experiment with Citations
 
 The citation: `r citep("10.1111/j.0006-341X.1999.00001.x")`
 
