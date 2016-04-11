@@ -136,8 +136,10 @@ Rm
 
 ## e) On average, how many weeks per year is the machine working?
 
+Using the steady state probabilities, we sum the probabilities of being in the working states and multiply by 52 weeks to determine on average how many weeks per year the machine is working.
+
 ```{r}
-# Use Metropolis-Hastings to estimate?
+sum(steadyState[1,1:3]) * 52
 ```
 
 ## f) Each week that the machine is in the low state...
@@ -511,24 +513,47 @@ g1 <- ggplot(dfResult) +
 g1
 ```
 
+```{r, echo=FALSE, fig.height=3, message=FALSE}
+dfResult <- data.frame(i=seq(1, length(res$costs)), Sx=res$costs)
+g1 <- ggplot(dfResult) + 
+  geom_line(aes(x=i, y=Sx)) +
+  labs(title="Iteration vs Cost") +
+  myTheme
+g1
+```
+
+Running the simulated annealing process again, this time multiple times inorder to examine the behaviour of the minimum across multiple runs.
+
 ```{r}
-z2 <- 5
+z2 <- 10
 costList <- numeric(z2)
 for(i in 1:z2)
 {
   res <- simulatedAnnealingTsp(T, z, beta, C)
   costList[i] <- min(res$costs)
 }
+
+minCost <- min(costList) #2632
+dfStatsCost <- data.frame(min=minCost, mean=mean(costList), max=max(costList), sd=sd(costList))
 ```
 
 ```{r, echo=FALSE, fig.height=3}
 g1 <- ggplot(data.frame(i=seq(1, z2), cost=costList)) + 
   geom_line(aes(x=i, y=cost)) + 
+  labs(title="Simulated Annealing Execution vs Minimum Cost") +
   myTheme
 g1
 ```
 
+The minimum cost from the `r z2` runs is `r minCost`. As shown in the line chart above, any given run does not find the minimum, and potentially we still haven't found the global minimum.
+
+```{r, echo=FALSE}
+kable(dfStatsCost)
+```
+
 # Experiment with Citations
+
+As an aside, I wanted to experiment with using R Markdown and bibtex citations. The first citation below is created using the `citep` function, while the second uses the bibtex approach `[@Auth_Year]` based on the bib file's key for the reference.
 
 The citation: `r citep("10.1111/j.0006-341X.1999.00001.x")`
 
