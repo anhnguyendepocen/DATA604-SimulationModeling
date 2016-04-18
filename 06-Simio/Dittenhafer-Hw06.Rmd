@@ -1,0 +1,80 @@
+---
+title: "Homework 6"
+subtitle: "DATA604 Simulation and Modeling"
+author: "Daniel Dittenhafer"
+date: "April 21, 2016"
+output: pdf_document
+classoption: portrait
+geometry: margin=0.5in
+csl: ../emerald-harvard.csl
+---
+```{r, echo=FALSE, message=FALSE}
+library(knitr)
+#library(gplots) bibliography: references.bib
+library(ggplot2)
+library(randtoolbox)
+library(gridExtra)
+#library(plot3D)
+#library(tseries)
+set.seed(20275)
+# My ggplot theme
+myTheme <- theme(axis.ticks=element_blank(),
+                 axis.title=element_text(size="10"),
+                  panel.border = element_rect(color="gray", fill=NA), 
+                  panel.background=element_rect(fill="#FBFBFB"), 
+                  panel.grid.major.y=element_line(color="white", size=0.5), 
+                  panel.grid.major.x=element_line(color="white", size=0.5),
+                  plot.title=element_text(size="10"))
+```
+
+# 1) Drivers License Facility Simulation
+
+## a) Home many 'source', 'server', 'sink' do we need to develop this model, what do those objects stand for in the real system?
+
+* We need 1 **source**.
+* 3 **servers**
+* 1 **sink**
+
+The source, named *SrcApplicantArrives* in my model, effectively represents the front door of the driver's license facility in this model. It generates the arrival events for the applicant entity.
+
+The servers, named *SvrCheckin*, *SvrExamClerks* and *SvrCheckout* in my model, represent the check clerk, exam clerks and checkout computers, respectively.
+
+The sink, named SnkApplicantDeparts, represents the exit door which enables the applicants to leave after they are done.
+
+## b) Simio Model Screenshots
+
+The screenshots of my model in Simio follow:
+
+![Drivers License Facility in Simio](DriversLicenseFaciltyModelSimio.png)
+
+### SrcApplicantArrives Properties
+
+I chose to use the exponential distribution for interarrival time since the question stated "approximately 10/hour" as opposed to "exactly"" 10/hour.
+
+![Source](SrcApplicantArrivesProperties.png)
+
+### SvrCheckin Properties
+
+For the checkin processing time, I chose to use the normal distribution with a mean of 5 minutes and standard deviation of 1 minute. Again, my rationale was that the question write stated "approximately 5 minutes".
+
+![Server](SvrCheckinProperties.png)
+
+### SvrExamClerks Properties
+
+![Server](SvrExamClerksProperties.png)
+
+### SvrCheckout Properties
+
+![Server](SvrCheckoutProperties.png)
+
+
+## c) Run the model and obtain the performance measures...
+
+I set the simulation to run for 8 hours based on the concept of a business day. I created an Experiment with 10 Replications which was run to generate the following performance results:
+
+![Performance Measures](PerfMeasures-1C.png)
+
+
+## d) Adding an optional "computerized exam kiosk"
+
+![Drivers License Facility in Simio with Exam Kiosk](DriversLicenseFaciltyModelSimioExamKiosk.png)

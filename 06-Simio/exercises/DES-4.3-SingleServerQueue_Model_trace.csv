@@ -1,0 +1,8 @@
+Time(Hours),EntityID,ObjectName,ProcessID,StepName,Action
+0,--,--,--,--,Unable to evaluate status expression for graphic.
+0,--,--,--,--,Data type mismatch. Unable to convert value 'CheckoutCounter.InputBuffer' from type 'Element Reference' to type 'Number'.
+0,--,--,--,--,Unable to evaluate status expression for graphic.
+0,--,--,--,--,Data type mismatch. Unable to convert value 'CheckoutCounter.InputBuffer' from type 'Element Reference' to type 'Number'.
+0,--,--,--,--,Unable to evaluate status expression for graphic.
+0,--,--,--,--,Data type mismatch. Unable to convert value 'CheckoutCounter.InputBuffer' from type 'Element Reference' to type 'Number'.
+
