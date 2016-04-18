@@ -78,3 +78,10 @@ I set the simulation to run for 8 hours based on the concept of a business day. 
 ## d) Adding an optional "computerized exam kiosk"
 
 ![Drivers License Facility in Simio with Exam Kiosk](DriversLicenseFaciltyModelSimioExamKiosk.png)
+
+# 2) M/M/1 Comparision
+
+I wrote my developed queueing simulation program in R. The code follows:
+
+```{r, code=readLines("./Dittenhafer-Hw06-2.R"), eval=FALSE, highlight=TRUE}
+```
